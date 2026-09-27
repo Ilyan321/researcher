@@ -4,7 +4,7 @@
 
 - [x] **Phase 0: Audit & Cleanup** — Audit existing files, git state, and verify folder architecture alignment.
 - [x] **Phase 1: Dependency & Configuration Foundation** — Set up `requirements.txt`, `config.py`, `.gitignore` with verified packages (CrewAI, Streamlit, Groq LLM setup) and secrets handling.
-- [ ] **Phase 2: LLM Configuration & Smoke Testing** — Configure `openai/gpt-oss-120b` via Groq using current CrewAI LLM standards.
+- [x] **Phase 2: LLM Configuration & Smoke Testing** — Configure `openai/gpt-oss-120b` via Groq using current CrewAI LLM standards.
 - [ ] **Phase 3: Streamlit Frontend Skeleton** — Build initial `app.py` structure supporting API key detection and research input.
 - [ ] **Phase 4: Agent 1 - Research Manager & Planning Task** — Implement `crew/agents/manager.py`, `crew/tasks/planning_task.py`, and YAML configs.
 - [ ] **Phase 5: Agent 2 - Web Researcher & Tools** — Implement `crew/tools/web_search.py`, `crew/tools/web_reader.py`, `crew/agents/web_researcher.py`, and `crew/tasks/web_research_task.py`.
