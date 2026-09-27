@@ -159,52 +159,70 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container) 
 def main():
     # Sidebar
     with st.sidebar:
-        st.header("⚙️ Configuration")
-        st.caption("AI Model & Credentials")
-        
-        # Model info
-        st.info(f"🧠 **Model:** `{DEFAULT_MODEL}`\n\n⚡ Ultra-fast LPU inference via Groq", icon="🤖")
+        st.markdown("## 🔬 Researcher AI")
+        st.markdown("**Autonomous Multi-Agent Deep Research System**")
+        st.write(
+            "An enterprise-grade autonomous research platform that orchestrates "
+            "specialized AI agents to plan inquiries, crawl live web documentation, "
+            "query peer-reviewed papers (arXiv & OpenAlex), cross-verify evidence, and compile "
+            "publication-grade research dossiers."
+        )
 
+        st.divider()
+
+        st.markdown("### 👥 Specialized Research Team")
+        st.markdown(
+            "- 🧭 **Lead Strategist** — Scopes inquiry & formulates search vectors\n"
+            "- 🌐 **Web Researcher** — Crawls live documentation & technical reports\n"
+            "- 📚 **Academic Researcher** — Queries arXiv & OpenAlex repositories\n"
+            "- ⚖️ **Evidence Analyst** — Cross-examines facts & flags contradictions\n"
+            "- ✍️ **Synthesis Writer** — Authors publication-grade markdown dossiers"
+        )
+
+        st.divider()
+
+        st.markdown("### ⚡ System Highlights")
+        st.markdown(
+            "- 🔍 **Multi-Source Cross-Verification**\n"
+            "- 📑 **Numbered Citations & References**\n"
+            "- 📥 **One-Click Markdown Export**\n"
+            "- 🚀 **Ultra-Fast Groq LPU Inference**"
+        )
+
+        st.divider()
+
+        # Discreet Credentials / Settings Management
         detected_key = get_groq_api_key()
-        
+
         if detected_key:
-            # Secrets / Env key detected cleanly
-            masked = f"{detected_key[:6]}...{detected_key[-4:]}" if len(detected_key) > 10 else "••••••••"
-            st.success(f"**API Key Active**\n\nLoaded from Secrets (`{masked}`)", icon="🔒")
-            
-            with st.expander("✏️ Override with custom key"):
+            active_api_key = detected_key
+            with st.expander("⚙️ System & API Settings"):
+                st.caption(f"**Model:** `{DEFAULT_MODEL}`")
+                st.caption("🟢 **Status:** API Key connected via Secrets")
                 override_key = st.text_input(
-                    "Custom Groq API Key:",
+                    "Override API Key (optional):",
                     type="password",
                     placeholder="gsk_...",
-                    help="Leave blank to use the Secrets key.",
+                    help="Leave blank to use the active Secrets key.",
                 )
-            active_api_key = override_key.strip() if override_key.strip() else detected_key
+                if override_key.strip():
+                    active_api_key = override_key.strip()
         else:
-            # No key in secrets
-            st.warning("No API Key found in Secrets", icon="⚠️")
+            st.markdown("### 🔑 API Key")
             active_api_key = st.text_input(
                 "Enter Groq API Key:",
                 type="password",
                 placeholder="gsk_...",
-                help="Get your free API key at console.groq.com",
+                help="Get a free key at console.groq.com",
             ).strip()
-            
-            if active_api_key:
-                st.success("API Key Provided", icon="✅")
-            else:
-                st.caption("💡 *Tip: Add `GROQ_API_KEY` to Streamlit Secrets to skip manual entry.*")
+            if not active_api_key:
+                st.caption("💡 *Tip: Configure `GROQ_API_KEY` in Streamlit Secrets for seamless automatic authentication.*")
 
         if active_api_key:
             os.environ["GROQ_API_KEY"] = active_api_key
 
         st.divider()
-        st.markdown("### 👥 Multi-Agent Research Team")
-        st.markdown("- 🧭 **Research Manager**: Scopes investigation & strategy")
-        st.markdown("- 🌐 **Web Researcher**: Live web discovery & URL inspection")
-        st.markdown("- 📚 **Academic Researcher**: arXiv & OpenAlex paper retrieval")
-        st.markdown("- ⚖️ **Evidence Analyst**: Fact-checking & contradiction audit")
-        st.markdown("- ✍️ **Research Writer**: Publication-grade report compilation")
+        st.caption("Researcher AI • Powered by CrewAI & Groq • [GitHub](https://github.com/Ilyan321/researcher)")
 
     # Main Layout
     st.title("🔬 Researcher AI")
