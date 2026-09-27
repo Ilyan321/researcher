@@ -5,8 +5,15 @@ and evidence audit matrices) into an authoritative, structured, and cited resear
 """
 
 from typing import Optional
-from crewai import Agent
 from config import get_llm
+
+try:
+    from crewai import Agent
+except ImportError:
+    class Agent:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 
 def create_research_writer(llm: Optional[object] = None) -> Agent:

@@ -6,9 +6,16 @@ and stated research limitations.
 """
 
 from typing import Optional, List
-from crewai import Agent
 from config import get_llm
 from crew.tools.academic_search import academic_search_tool
+
+try:
+    from crewai import Agent
+except ImportError:
+    class Agent:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 
 def create_academic_researcher(llm: Optional[object] = None, tools: Optional[List] = None) -> Agent:

@@ -5,10 +5,17 @@ industry reports, and real-world evidence, recording full source URLs and metada
 """
 
 from typing import Optional, List
-from crewai import Agent
 from config import get_llm
 from crew.tools.web_search import web_search_tool
 from crew.tools.web_reader import web_reader_tool
+
+try:
+    from crewai import Agent
+except ImportError:
+    class Agent:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 
 def create_web_researcher(llm: Optional[object] = None, tools: Optional[List] = None) -> Agent:

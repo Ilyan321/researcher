@@ -5,7 +5,15 @@ and return structured findings with full URLs, dates, and evidence quotes.
 """
 
 from typing import Optional, List
-from crewai import Task, Agent
+
+try:
+    from crewai import Task, Agent
+except ImportError:
+    class Task:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    Agent = object
 
 
 def create_web_research_task(

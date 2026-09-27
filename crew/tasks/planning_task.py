@@ -4,7 +4,14 @@ Defines the planning step where the manager decomposes the research question
 and outlines investigative avenues for the web and academic researchers.
 """
 
-from crewai import Task, Agent
+try:
+    from crewai import Task, Agent
+except ImportError:
+    class Task:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    Agent = object
 
 
 def create_planning_task(agent: Agent, research_question: str) -> Task:

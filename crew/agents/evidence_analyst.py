@@ -6,8 +6,15 @@ and calibrates the confidence level of all factual assertions.
 """
 
 from typing import Optional
-from crewai import Agent
 from config import get_llm
+
+try:
+    from crewai import Agent
+except ImportError:
+    class Agent:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 
 def create_evidence_analyst(llm: Optional[object] = None) -> Agent:
