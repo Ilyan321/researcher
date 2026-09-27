@@ -1,0 +1,64 @@
+planning_task:
+  description: >
+    Analyze the user's research question: "{research_question}".
+    1. Deconstruct the core question into key dimensions, concepts, and investigative sub-questions.
+    2. Define the types of empirical evidence required (e.g., industry metrics, technical architecture, academic benchmarks).
+    3. Outline specific search queries and focus areas for the Web Researcher.
+    4. Outline specific scholarly topics, keywords, and publication areas for the Academic Researcher.
+    5. Formulate the overarching research strategy.
+  expected_output: >
+    A structured research plan outlining:
+    - Primary Objective & Scope
+    - Core Sub-Questions
+    - Web Research Focus & Targeted Queries
+    - Academic Literature Focus & Keywords
+    - Evidence Verification Criteria
+
+web_research_task:
+  description: >
+    Execute the web research strategy for the question: "{research_question}".
+    Use your web search and web reader tools to find current, authoritative sources, documentation,
+    industry reports, and official announcements.
+    For each source discovered:
+    - Capture the Title, URL, and Publication Date (if available).
+    - Summarize the specific factual claim or evidence extracted.
+    - Note whether it is a primary or secondary source.
+  expected_output: >
+    A collection of structured web findings with titles, URLs, publication dates, and extracted evidence snippets.
+
+academic_research_task:
+  description: >
+    Execute the academic research strategy for the question: "{research_question}".
+    Use your academic search tools to query scholarly databases (such as arXiv, OpenAlex, Crossref).
+    Extract:
+    - Paper Title, Authors, Year/Date, and DOI/URL.
+    - Abstract summary and key empirical findings/methodologies.
+    - Stated limitations of the research.
+  expected_output: >
+    A collection of structured academic findings detailing paper titles, authors, publication dates, DOIs/URLs, and abstracts.
+
+evidence_analysis_task:
+  description: >
+    Conduct a rigorous evidence audit of all web and academic findings for: "{research_question}".
+    1. Cross-examine claims across sources to detect contradictions or consensus.
+    2. Flag any weak, outdated, or unsubstantiated claims.
+    3. Calibrate claim strength (e.g., "Study indicates X in benchmark Y" vs "Universal 40% increase").
+    4. Highlight genuine uncertainties and open scientific debates.
+  expected_output: >
+    An Evidence Audit Matrix categorizing verified facts, contested claims, weak sources, and limitations.
+
+writing_task:
+  description: >
+    Synthesize all planning, web research, academic research, and evidence analysis into a master research report for: "{research_question}".
+    Structure the final report using the following markdown format:
+    # [Report Title]
+    ## Executive Summary
+    ## Research Question & Scope
+    ## Key Findings (Categorized with [1], [2] citation markers)
+    ## Detailed Empirical Analysis
+    ## Contradictions & Divergent Perspectives
+    ## Methodological Limitations
+    ## Conclusion & Strategic Outlook
+    ## References (Numbered list of all cited sources with Title, Authors/Org, Year, and URL/DOI)
+  expected_output: >
+    A polished, comprehensive, and professionally formatted research report in Markdown with numbered citations and complete references.

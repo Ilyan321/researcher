@@ -6,7 +6,7 @@
 - [x] **Phase 1: Dependency & Configuration Foundation** — Set up `requirements.txt`, `config.py`, `.gitignore` with verified packages (CrewAI, Streamlit, Groq LLM setup) and secrets handling.
 - [x] **Phase 2: LLM Configuration & Smoke Testing** — Configure `openai/gpt-oss-120b` via Groq using current CrewAI LLM standards.
 - [x] **Phase 3: Streamlit Frontend Skeleton** — Build initial `app.py` structure supporting API key detection and research input.
-- [ ] **Phase 4: Agent 1 - Research Manager & Planning Task** — Implement `crew/agents/manager.py`, `crew/tasks/planning_task.py`, and YAML configs.
+- [x] **Phase 4: Agent 1 - Research Manager & Planning Task** — Implement `crew/agents/manager.py`, `crew/tasks/planning_task.py`, and YAML configs.
 - [ ] **Phase 5: Agent 2 - Web Researcher & Tools** — Implement `crew/tools/web_search.py`, `crew/tools/web_reader.py`, `crew/agents/web_researcher.py`, and `crew/tasks/web_research_task.py`.
 - [ ] **Phase 6: Agent 3 - Academic Researcher & Tools** — Implement `crew/tools/academic_search.py` (arXiv/OpenAlex/Crossref), `crew/agents/academic_researcher.py`, and `crew/tasks/academic_task.py`.
 - [ ] **Phase 7: Agent 4 - Evidence Analyst & Task** — Implement `crew/agents/evidence_analyst.py` and `crew/tasks/evidence_task.py` for fact-checking and contradiction detection.
