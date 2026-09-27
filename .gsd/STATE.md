@@ -18,4 +18,9 @@
 - [x] **Phase 11: Deployment Readiness & Final Documentation** (`README.md`, `PLAN.md`, project-wide syntax verification)
 
 ## GitHub Issues Tracker
-- All 12 GitHub Issues (#1 through #12) on `Ilyan321/researcher` are completed, verified, and closed.
+- All 12 Core Development Issues (#1 through #12) on `Ilyan321/researcher` are completed, verified, and closed.
+- Future enhancement backlog recorded as open issues:
+  - #13: Multi-Format Export Support (PDF, DOCX, LaTeX)
+  - #14: Automated Defense & Mitigation Matrix for Security Inquiries
+  - #15: Cloud Vector Store Integration & Long-Term Agent Memory
+  - #16: Interactive Multi-Agent Follow-Up & Deep Dive Q&A

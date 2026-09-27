@@ -14,3 +14,10 @@
 - [x] **Phase 9: Crew Orchestration & Pipeline Assembly** — Implement `crew/crew.py` assembling all 5 agents and tasks into a cohesive multi-agent flow.
 - [x] **Phase 10: Streamlit UI Integration & Live Progress Tracking** — Wire Streamlit UI with the Crew pipeline, progress feedback, structured report renderer, and source viewer.
 - [x] **Phase 11: Deployment Readiness & Final Documentation** — Build comprehensive `README.md`, verify zero local runtime assumptions, validate syntax/imports, ensure GitHub & Streamlit Cloud deployment readiness.
+
+## Future Enhancements & Backlog (Tracked in GitHub Issues)
+
+- [ ] **Issue #13: Multi-Format Export Support** — Direct PDF, DOCX, and LaTeX export options.
+- [ ] **Issue #14: Automated Defense & Mitigation Matrix** — Automated security playbooks for cybersecurity research topics.
+- [ ] **Issue #15: Cloud Vector Store Integration** — Cross-session persistent agent memory (Qdrant/Pinecone).
+- [ ] **Issue #16: Interactive Multi-Agent Follow-Up** — Granular follow-up investigations and deep-dive Q&A.
