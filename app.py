@@ -160,22 +160,43 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Configuration")
-        st.markdown(f"**Target Model:** `{DEFAULT_MODEL}`")
+        st.caption("AI Model & Credentials")
         
+        # Model info
+        st.info(f"🧠 **Model:** `{DEFAULT_MODEL}`\n\n⚡ Ultra-fast LPU inference via Groq", icon="🤖")
+
         detected_key = get_groq_api_key()
-        api_key_input = st.text_input(
-            "Groq API Key (optional if configured in Secrets):",
-            type="password",
-            value=detected_key if detected_key else "",
-            help="Your API key is used exclusively in-memory for queries.",
-        )
         
-        active_api_key = api_key_input.strip() if api_key_input.strip() else detected_key
+        if detected_key:
+            # Secrets / Env key detected cleanly
+            masked = f"{detected_key[:6]}...{detected_key[-4:]}" if len(detected_key) > 10 else "••••••••"
+            st.success(f"**API Key Active**\n\nLoaded from Secrets (`{masked}`)", icon="🔒")
+            
+            with st.expander("✏️ Override with custom key"):
+                override_key = st.text_input(
+                    "Custom Groq API Key:",
+                    type="password",
+                    placeholder="gsk_...",
+                    help="Leave blank to use the Secrets key.",
+                )
+            active_api_key = override_key.strip() if override_key.strip() else detected_key
+        else:
+            # No key in secrets
+            st.warning("No API Key found in Secrets", icon="⚠️")
+            active_api_key = st.text_input(
+                "Enter Groq API Key:",
+                type="password",
+                placeholder="gsk_...",
+                help="Get your free API key at console.groq.com",
+            ).strip()
+            
+            if active_api_key:
+                st.success("API Key Provided", icon="✅")
+            else:
+                st.caption("💡 *Tip: Add `GROQ_API_KEY` to Streamlit Secrets to skip manual entry.*")
+
         if active_api_key:
             os.environ["GROQ_API_KEY"] = active_api_key
-            st.success("API Key Active")
-        else:
-            st.warning("Please provide a Groq API Key.")
 
         st.divider()
         st.markdown("### 👥 Multi-Agent Research Team")
