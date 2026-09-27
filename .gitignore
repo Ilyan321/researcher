@@ -1,9 +1,30 @@
+# Python cache
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
 .venv/
 venv/
+ENV/
+env/
+
+# Environment variables and Secrets
 .env
 .env.*
 .streamlit/secrets.toml
+secrets.toml
+
+# Logs
 *.log
+
+# OS generated
 .DS_Store
+Thumbs.db
+
+# Testing and linters
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

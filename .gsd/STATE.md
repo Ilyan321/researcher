@@ -1,17 +1,14 @@
 # PROJECT STATE — Researcher AI
 
-**Current Phase:** Phase 0 (Planning & Audit)
+**Current Phase:** Phase 1 Complete (Ready for Phase 2: LLM Configuration & Smoke Testing)
 **Last Updated:** 2026-09-27
 
-## System Status
-- Specification saved in `.gsd/SPEC.md` (Status: FINALIZED)
-- Roadmap created in `.gsd/ROADMAP.md`
-- Target Model: `openai/gpt-oss-120b` via Groq
-- Framework: CrewAI + Streamlit
-- Deployment: GitHub → Streamlit Community Cloud
+## Completed Phases
+- [x] **Phase 0: Audit & Workspace Cleanup** (Verified repository structure and git status)
+- [x] **Phase 1: Dependency & Configuration Foundation** (`requirements.txt`, `config.py`, `.gitignore` configured)
 
-## Decisions & Constraints
-- No local runtime required from developer. Static code checks and clean dependency definitions only.
-- Strict architecture in `crew/` (no duplicate `research_crew.py` or root-level agent directories).
-- Secrets handled via `st.secrets` with fallback to `os.environ`. No hardcoded API keys.
-- Real tools for web and academic search with resilient error handling.
+## Current Status & Verification
+- `requirements.txt`: Streamlined to essential packages (`crewai`, `streamlit`, `requests`, `beautifulsoup4`, `duckduckgo-search`).
+- `config.py`: Centralized LLM factory (`get_llm`) targeting `groq/openai/gpt-oss-120b`, and secret loader checking `st.secrets` & `os.environ`.
+- `.gitignore`: Comprehensive exclusion of keys, `.env`, `.streamlit/secrets.toml`, and caches.
+- Static syntax check: `config.py` passed `python3 -m py_compile`.
