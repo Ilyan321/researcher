@@ -1,13 +1,19 @@
-"""Researcher AI — Streamlit Frontend Application.
+"""Researcher AI — Multi-Agent Research Platform.
 
-A research-focused multi-agent system powered by CrewAI and Groq.
+A research-focused multi-agent system powered by CrewAI and Groq (openai/gpt-oss-120b).
 """
 
 import os
+import json
+import time
+import urllib.request
+import urllib.error
 import streamlit as st
-from config import get_groq_api_key, DEFAULT_MODEL
+from config import get_groq_api_key, DEFAULT_MODEL, DEFAULT_TEMPERATURE
+from crew.tools.web_search import perform_web_search
+from crew.tools.academic_search import perform_academic_search
 
-# Set page configuration
+# Page configuration
 st.set_page_config(
     page_title="Researcher AI",
     page_icon="🔬",
@@ -20,47 +26,190 @@ if "research_result" not in st.session_state:
     st.session_state.research_result = None
 if "is_researching" not in st.session_state:
     st.session_state.is_researching = False
-if "research_history" not in st.session_state:
-    st.session_state.research_history = []
+if "pipeline_details" not in st.session_state:
+    st.session_state.pipeline_details = {}
+
+
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_retries: int = 5) -> str:
+    """Call Groq API with automatic rate-limit backoff and token budget management."""
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    payload = {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": temperature,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "ResearcherAI/1.0",
+    }
+
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+                return body["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < max_retries - 1:
+                wait_time = [6, 12, 20, 30, 45][attempt]
+                time.sleep(wait_time)
+            elif e.code == 413:
+                # Truncate context if payload is too large
+                payload["messages"][1]["content"] = user_prompt[:2500]
+                time.sleep(2)
+            else:
+                raise e
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(3)
+            else:
+                raise e
+
+    raise RuntimeError("Failed to complete LLM request after retries.")
+
+
+def execute_multi_agent_pipeline(question: str, api_key: str, status_container) -> dict:
+    """Run all 5 specialized agents with live step-by-step status updates."""
+    pipeline_data = {}
+
+    # Step 1: Research Manager
+    status_container.write("🧭 **Step 1/5: Research Manager** — Analyzing question and decomposing research strategy...")
+    manager_system = (
+        "Role: Lead Research Manager & Strategist\n"
+        "Goal: Deconstruct research questions into structured subtopics, identify necessary evidence, "
+        "and establish targeted directives for Web and Academic researchers."
+    )
+    manager_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Create a concise Research Plan with:\n"
+        f"1. Core Sub-Questions\n"
+        f"2. Top 2 targeted Web Search Queries\n"
+        f"3. Top 2 targeted Academic Keywords\n"
+        f"4. Evidence Verification Criteria"
+    )
+    plan_output = call_groq_api(manager_system, manager_prompt, api_key, temperature=0.2)
+    pipeline_data["plan"] = plan_output
+    time.sleep(1)
+
+    # Step 2: Web Researcher
+    status_container.write("🌐 **Step 2/5: Web Researcher** — Searching live web sources and inspecting documentation...")
+    web_query = f"{question} documentation technical report CVE"
+    search_json = perform_web_search(web_query, max_results=4)
+    web_system = "Role: Senior Web Research Specialist\nGoal: Synthesize timely web findings with exact source titles and URLs."
+    web_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nSearch Data:\n{search_json}\nSynthesize web findings into a structured list with exact URLs."
+    web_output = call_groq_api(web_system, web_prompt, api_key, temperature=0.2)
+    pipeline_data["web_findings"] = web_output
+    time.sleep(1)
+
+    # Step 3: Academic Researcher
+    status_container.write("📚 **Step 3/5: Academic Researcher** — Querying arXiv and OpenAlex for peer-reviewed literature...")
+    academic_query = f"{question} empirical study benchmark"
+    academic_json = perform_academic_search(academic_query, max_results=3)
+    academic_system = "Role: Principal Academic Literature Specialist\nGoal: Synthesize peer-reviewed literature, abstracts, and DOIs."
+    academic_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nAcademic Data:\n{academic_json}\nSynthesize 3 key academic papers into a concise summary with URLs/DOIs."
+    academic_output = call_groq_api(academic_system, academic_prompt, api_key, temperature=0.2)
+    pipeline_data["academic_findings"] = academic_output
+    time.sleep(1)
+
+    # Step 4: Evidence Analyst
+    status_container.write("⚖️ **Step 4/5: Evidence Analyst** — Auditing claims, checking contradictions, and calibrating certainty...")
+    analyst_system = "Role: Chief Evidence Analyst & Fact-Checker\nGoal: Audit claims against sources, detect contradictions, and calibrate certainty."
+    analyst_prompt = (
+        f"Question: {question}\n\n"
+        f"Web Findings:\n{web_output[:1500]}\n\n"
+        f"Academic Findings:\n{academic_output[:1500]}\n\n"
+        f"Perform an Evidence Audit. Output:\n"
+        f"1. Confidence Calibration Matrix (Strong, Moderate, Contested, Weak)\n"
+        f"2. Contradiction Analysis\n"
+        f"3. Strict Directives for the Research Writer"
+    )
+    analyst_output = call_groq_api(analyst_system, analyst_prompt, api_key, temperature=0.1)
+    pipeline_data["evidence_audit"] = analyst_output
+    time.sleep(1)
+
+    # Step 5: Research Writer
+    status_container.write("✍️ **Step 5/5: Research Writer** — Compiling comprehensive cited research report...")
+    writer_system = "Role: Senior Technical Research Writer\nGoal: Synthesize multi-agent research into a publication-grade Markdown report with numbered citations."
+    writer_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Web Evidence:\n{web_output[:1800]}\n\n"
+        f"Academic Evidence:\n{academic_output[:1800]}\n\n"
+        f"Evidence Audit Matrix:\n{analyst_output[:1800]}\n\n"
+        f"Produce the final Research Report in Markdown:\n"
+        f"# [Title]\n"
+        f"## Executive Summary\n"
+        f"## Research Question & Scope\n"
+        f"## Key Findings (with [1], [2] citations)\n"
+        f"## Detailed Empirical Analysis\n"
+        f"## Contradictions & Divergent Perspectives\n"
+        f"## Methodological Limitations\n"
+        f"## Strategic Recommendations & Conclusion\n"
+        f"## References (Numbered list with URLs)"
+    )
+    final_report = call_groq_api(writer_system, writer_prompt, api_key, temperature=0.2)
+    pipeline_data["final_report"] = final_report
+
+    return pipeline_data
 
 
 def main():
-    # Sidebar - Settings & API Key Status
+    # Sidebar
     with st.sidebar:
         st.header("⚙️ Configuration")
-        st.markdown(f"**Model:** `{DEFAULT_MODEL}`")
+        st.markdown(f"**Target Model:** `{DEFAULT_MODEL}`")
         
-        api_key = get_groq_api_key()
-        user_key = st.text_input(
-            "Groq API Key (optional if set in secrets):",
+        detected_key = get_groq_api_key()
+        api_key_input = st.text_input(
+            "Groq API Key (optional if configured in Secrets):",
             type="password",
-            value=api_key if api_key else "",
-            help="Your key is used in-memory for requests and never saved or logged.",
+            value=detected_key if detected_key else "",
+            help="Your API key is used exclusively in-memory for queries.",
         )
         
-        if user_key:
-            os.environ["GROQ_API_KEY"] = user_key
-            st.success("API Key detected / configured.")
+        active_api_key = api_key_input.strip() if api_key_input.strip() else detected_key
+        if active_api_key:
+            os.environ["GROQ_API_KEY"] = active_api_key
+            st.success("API Key Active")
         else:
-            st.warning("Please provide a GROQ_API_KEY or configure it in Streamlit Secrets.")
+            st.warning("Please provide a Groq API Key.")
 
         st.divider()
-        st.markdown("### 👥 Agent Team")
-        st.markdown("- 🧭 **Research Manager** (Planning)")
-        st.markdown("- 🌐 **Web Researcher** (Live Web)")
-        st.markdown("- 📚 **Academic Researcher** (arXiv/OpenAlex)")
-        st.markdown("- ⚖️ **Evidence Analyst** (Verification)")
-        st.markdown("- ✍️ **Research Writer** (Synthesis)")
+        st.markdown("### 👥 Multi-Agent Research Team")
+        st.markdown("- 🧭 **Research Manager**: Scopes investigation & strategy")
+        st.markdown("- 🌐 **Web Researcher**: Live web discovery & URL inspection")
+        st.markdown("- 📚 **Academic Researcher**: arXiv & OpenAlex paper retrieval")
+        st.markdown("- ⚖️ **Evidence Analyst**: Fact-checking & contradiction audit")
+        st.markdown("- ✍️ **Research Writer**: Publication-grade report compilation")
 
-    # Main Header
+    # Main Layout
     st.title("🔬 Researcher AI")
-    st.caption("Your Autonomous Multi-Agent Research Team")
+    st.caption("Autonomous Multi-Agent Research Team powered by Groq & CrewAI")
 
-    # Research Input Section
+    # Example Inquiries
+    with st.expander("💡 Click to view example research inquiries"):
+        col_e1, col_e2, col_e3 = st.columns(3)
+        with col_e1:
+            if st.button("AI Coding Agent Security", use_container_width=True):
+                st.session_state.example_q = "What are the security risks of autonomous AI coding agents?"
+        with col_e2:
+            if st.button("AI Memory Architectures", use_container_width=True):
+                st.session_state.example_q = "Compare the current approaches to AI agent memory systems."
+        with col_e3:
+            if st.button("Developer Productivity Impact", use_container_width=True):
+                st.session_state.example_q = "What are the benefits and empirical limitations of AI coding assistants?"
+
+    default_question = st.session_state.get("example_q", "")
+
+    # Input Box
     question = st.text_area(
         "Enter your research question:",
+        value=default_question,
         placeholder="e.g., What are the security risks of autonomous AI coding agents?",
-        height=120,
+        height=100,
         disabled=st.session_state.is_researching,
     )
 
@@ -74,41 +223,71 @@ def main():
         )
     with col2:
         if st.session_state.research_result:
-            if st.button("🔄 Reset", use_container_width=False):
+            if st.button("🔄 New Research", use_container_width=False):
                 st.session_state.research_result = None
+                st.session_state.pipeline_details = {}
+                st.session_state.example_q = ""
                 st.rerun()
 
-    # Research Execution Handler (Skeleton / Phase 3 Smoke Test)
+    # Execution Trigger
     if start_btn:
         if not question.strip():
             st.error("Please enter a research question before starting.")
-        elif not os.environ.get("GROQ_API_KEY") and not get_groq_api_key():
-            st.error("Groq API Key is required. Please set it in the sidebar or Streamlit Secrets.")
+        elif not active_api_key:
+            st.error("Groq API Key is required. Please provide it in the sidebar or Streamlit Secrets.")
         else:
             st.session_state.is_researching = True
             
-            with st.status("🔍 Conducting Research with Multi-Agent Team...", expanded=True) as status:
-                st.write("🧭 Research Manager: Analyzing question and building strategy...")
-                st.write("🌐 Web Researcher: Gathering recent web publications...")
-                st.write("📚 Academic Researcher: Querying academic databases...")
-                st.write("⚖️ Evidence Analyst: Verifying claims against sources...")
-                st.write("✍️ Research Writer: Synthesizing final structured report...")
-                status.update(label="✅ Research Complete!", state="complete", expanded=False)
+            with st.status("🔍 Conducting Autonomous Multi-Agent Research...", expanded=True) as status_box:
+                try:
+                    results = execute_multi_agent_pipeline(question, active_api_key, status_box)
+                    st.session_state.pipeline_details = results
+                    st.session_state.research_result = {
+                        "question": question,
+                        "report": results.get("final_report", "No report generated."),
+                    }
+                    status_box.update(label="✅ Research Complete!", state="complete", expanded=False)
+                except Exception as e:
+                    status_box.update(label="❌ Research Process Interrupted", state="error", expanded=True)
+                    st.error(f"Error during research execution: {str(e)}")
+                finally:
+                    st.session_state.is_researching = False
+                    st.rerun()
 
-            # Placeholder result for Phase 3 smoke test
-            st.session_state.research_result = {
-                "question": question,
-                "summary": f"Research completed for: {question}",
-                "report": f"### Research Report: {question}\n\n*Phase 3 UI skeleton verified. Full multi-agent pipeline connects in Phase 9.*",
-            }
-            st.session_state.is_researching = False
-            st.rerun()
-
-    # Display Report Section
+    # Results Display
     if st.session_state.research_result:
         st.divider()
-        st.subheader("📋 Research Report")
-        st.markdown(st.session_state.research_result["report"])
+        report_text = st.session_state.research_result["report"]
+
+        tab1, tab2, tab3 = st.tabs(["📄 Structured Report", "🔍 Agent Pipeline Telemetry", "📥 Raw Markdown"])
+        
+        with tab1:
+            st.markdown(report_text)
+            st.download_button(
+                label="📥 Download Research Report (.md)",
+                data=report_text,
+                file_name="researcher_ai_report.md",
+                mime="text/markdown",
+            )
+
+        with tab2:
+            st.subheader("🕵️ Agent Artifacts & Intermediate Evidence")
+            details = st.session_state.pipeline_details
+            
+            with st.expander("🧭 1. Research Manager Strategy"):
+                st.markdown(details.get("plan", "N/A"))
+
+            with st.expander("🌐 2. Web Researcher Findings"):
+                st.markdown(details.get("web_findings", "N/A"))
+
+            with st.expander("📚 3. Academic Researcher Literature"):
+                st.markdown(details.get("academic_findings", "N/A"))
+
+            with st.expander("⚖️ 4. Evidence Analyst Audit Matrix"):
+                st.markdown(details.get("evidence_audit", "N/A"))
+
+        with tab3:
+            st.code(report_text, language="markdown")
 
 
 if __name__ == "__main__":
