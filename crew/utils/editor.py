@@ -130,14 +130,14 @@ def execute_llm_call(
     api_key: str,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    max_retries: int = 4,
+    max_retries: int = 6,
     model_name: str = "llama-3.3-70b-versatile"
 ) -> str:
     """Robust Groq API caller with multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
     # Priority cascade of active non-deprecated models from GroqCloud
-    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
@@ -174,18 +174,29 @@ def execute_llm_call(
                 pass
 
             if e.code == 429:
-                # Switch immediately to fast fallback model on first rate-limit
+                # 1. Switch immediately to next model in cascade
                 if len(models_cascade) > 1:
                     next_model = models_cascade[min(attempt + 1, len(models_cascade) - 1)]
                     payload["model"] = next_model
 
-                wait_sec = 2.0
+                # 2. Extract dynamic retry-after duration
+                wait_sec = min(2.0 ** (attempt + 1) * 0.75 + 1.0, 8.0)
                 if "Retry-After" in e.headers:
                     try:
-                        wait_sec = min(float(e.headers.get("Retry-After")), 5.0)
+                        wait_sec = max(float(e.headers.get("Retry-After")), 1.0)
                     except Exception:
                         pass
+                elif err_text:
+                    match = re.search(r"try again in ([\d\.]+)s", err_text, re.IGNORECASE)
+                    if match:
+                        try:
+                            wait_sec = float(match.group(1)) + 0.3
+                        except Exception:
+                            pass
+
+                wait_sec = min(max(wait_sec, 1.2), 8.0)
                 time.sleep(wait_sec)
+                continue
 
             elif e.code == 400 and any(k in err_text.lower() for k in ["tool_use_failed", "tool choice is none"]):
                 # Model emitted a pseudo tool call when tools were disabled - switch to standard instruction model
@@ -210,18 +221,19 @@ def execute_llm_call(
             elif e.code == 413 or (e.code == 400 and any(k in err_text.lower() for k in ["context_length_exceeded", "context length", "too many tokens", "maximum context length", "max_tokens"])):
                 # If prompt is too large, trim middle of context while keeping instructions
                 user_msg = payload["messages"][1]["content"]
-                if len(user_msg) > 4000:
-                    keep_prefix = max(1500, int(len(user_msg) * 0.25))
-                    keep_suffix = max(2000, int(len(user_msg) * 0.35))
+                if len(user_msg) > 3000:
+                    keep_prefix = max(1200, int(len(user_msg) * 0.25))
+                    keep_suffix = max(1500, int(len(user_msg) * 0.35))
                     payload["messages"][1]["content"] = (
                         user_msg[:keep_prefix]
                         + "\n\n[...context omitted for brevity...]\n\n"
                         + user_msg[-keep_suffix:]
                     )
                 # Downsize max_tokens to prevent context overflow
-                if payload.get("max_tokens", 0) > 2000:
-                    payload["max_tokens"] = max(1500, int(payload["max_tokens"] * 0.75))
-                time.sleep(2)
+                if payload.get("max_tokens", 0) > 1500:
+                    payload["max_tokens"] = max(1200, int(payload["max_tokens"] * 0.75))
+                time.sleep(1.5)
+                continue
             else:
                 formatted_err = None
                 try:

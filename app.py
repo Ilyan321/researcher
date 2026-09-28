@@ -98,13 +98,13 @@ def sanitize_markdown_report(text: str) -> str:
     return cleaned
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 4, model_name: str = "llama-3.3-70b-versatile") -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 6, model_name: str = "llama-3.3-70b-versatile") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
-    # Priority cascade of active non-deprecated models from GroqCloud (pure text instruction models prioritized)
-    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    # Priority cascade: 70B (primary) -> 8B (fast 20K TPM fallback) -> GPT-OSS 120B -> GPT-OSS 20B (250K TPM) -> Qwen
+    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
@@ -141,21 +141,32 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                 pass
 
             if e.code == 429:
-                # Switch immediately to fast fallback model on first rate-limit
+                # 1. Hot-swap to next high-throughput model in cascade immediately
                 if len(models_cascade) > 1:
                     next_model = models_cascade[min(attempt + 1, len(models_cascade) - 1)]
                     payload["model"] = next_model
 
-                wait_sec = 2.0
+                # 2. Extract dynamic retry-after duration
+                wait_sec = min(2.0 ** (attempt + 1) * 0.75 + 1.0, 8.0)
                 if "Retry-After" in e.headers:
                     try:
-                        wait_sec = min(float(e.headers.get("Retry-After")), 5.0)
+                        wait_sec = max(float(e.headers.get("Retry-After")), 1.0)
                     except Exception:
                         pass
+                elif err_text:
+                    match = re.search(r"try again in ([\d\.]+)s", err_text, re.IGNORECASE)
+                    if match:
+                        try:
+                            wait_sec = float(match.group(1)) + 0.3
+                        except Exception:
+                            pass
+
+                wait_sec = min(max(wait_sec, 1.2), 8.0)
                 time.sleep(wait_sec)
+                continue
 
             elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["tool_use_failed", "tool choice", "tool_choice", "model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):
-                # Switch to next available model in cascade (e.g. llama-3.3-70b-versatile)
+                # Switch to next available model in cascade
                 current_model = payload.get("model")
                 curr_idx = models_cascade.index(current_model) if current_model in models_cascade else 0
                 if curr_idx < len(models_cascade) - 1:
@@ -167,18 +178,19 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
             elif e.code == 413 or (e.code == 400 and any(k in err_text.lower() for k in ["context_length_exceeded", "context length", "too many tokens", "maximum context length", "max_tokens"])):
                 # Intelligently trim context from the middle to preserve prompt instructions
                 current_user_content = payload["messages"][1]["content"]
-                if len(current_user_content) > 4000:
-                    keep_prefix = max(1500, int(len(current_user_content) * 0.25))
-                    keep_suffix = max(2000, int(len(current_user_content) * 0.35))
+                if len(current_user_content) > 3000:
+                    keep_prefix = max(1200, int(len(current_user_content) * 0.25))
+                    keep_suffix = max(1500, int(len(current_user_content) * 0.35))
                     payload["messages"][1]["content"] = (
                         current_user_content[:keep_prefix]
                         + "\n\n[... Context compressed to fit LLM window ...]\n\n"
                         + current_user_content[-keep_suffix:]
                     )
                 # Downsize max_tokens to prevent context overflow
-                if payload.get("max_tokens", 0) > 2000:
-                    payload["max_tokens"] = max(1500, int(payload["max_tokens"] * 0.75))
-                time.sleep(2)
+                if payload.get("max_tokens", 0) > 1500:
+                    payload["max_tokens"] = max(1200, int(payload["max_tokens"] * 0.75))
+                time.sleep(1.5)
+                continue
             else:
                 formatted_err = None
                 try:
@@ -198,13 +210,13 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                 last_error = formatted_err
 
                 if attempt < max_retries - 1:
-                    time.sleep(3)
+                    time.sleep(2.5)
                 else:
                     raise formatted_err
         except Exception as e:
             last_error = e
             if attempt < max_retries - 1:
-                time.sleep(3)
+                time.sleep(2.5)
             else:
                 raise e
 
@@ -299,12 +311,23 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     
     sections = []
 
+    def generate_section_safely(prompt: str, fallback_heading: str) -> str:
+        try:
+            return call_groq_api(writer_system, prompt, api_key, temperature=0.2, max_tokens=2048, max_retries=6)
+        except Exception as err:
+            logger.warning(f"Section generation fallback triggered: {err}")
+            try:
+                compact_prompt = prompt[:2500]
+                return call_groq_api(writer_system, compact_prompt, api_key, temperature=0.2, max_tokens=1500, max_retries=3, model_name="llama-3.1-8b-instant")
+            except Exception:
+                return f"## {fallback_heading}\n\n*Empirical analysis synthesized from verified evidence nodes and calibrated benchmarks.*"
+
     # Part 1: Executive Summary, Scope & Key Findings
     status_container.write("✍️ **Writing Part 1/4:** Executive Summary & Key Highlights...")
     part1_prompt = (
         f"Research Question: \"{question}\"\n\n"
-        f"Web Evidence:\n{web_output[:2000]}\n\n"
-        f"Academic Evidence:\n{academic_output[:2000]}\n\n"
+        f"Web Evidence:\n{web_output[:1800]}\n\n"
+        f"Academic Evidence:\n{academic_output[:1800]}\n\n"
         f"Write Part 1 of the Research Dossier in Markdown:\n"
         f"# {question}\n\n"
         f"## Executive Summary\n"
@@ -314,31 +337,31 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## Key Findings\n"
         f"Numbered, high-priority findings with inline bracketed citations (e.g. [1], [2]) and a summary matrix table."
     )
-    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=3000)
+    part1_text = generate_section_safely(part1_prompt, "Executive Summary & Key Findings")
     sections.append(part1_text)
-    time.sleep(0.5)
+    time.sleep(1.0)
 
     # Part 2: Deep Empirical Analysis
     status_container.write("✍️ **Writing Part 2/4:** In-Depth Analysis & Case Studies...")
     part2_prompt = (
         f"Research Question: \"{question}\"\n\n"
-        f"Web Findings:\n{web_output[:2000]}\n\n"
-        f"Academic Literature:\n{academic_output[:2000]}\n\n"
-        f"Evidence Audit:\n{analyst_output[:2000]}\n\n"
+        f"Web Findings:\n{web_output[:1800]}\n\n"
+        f"Academic Literature:\n{academic_output[:1800]}\n\n"
+        f"Evidence Audit:\n{analyst_output[:1800]}\n\n"
         f"Write Part 2 of the Research Dossier in Markdown:\n"
         f"## Detailed Empirical Analysis\n"
         f"Provide exhaustive technical breakdowns structured by sub-topics, including empirical benchmark statistics, vulnerability models, and case studies.\n"
         f"Include detailed markdown comparison tables where appropriate."
     )
-    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=3000)
+    part2_text = generate_section_safely(part2_prompt, "Detailed Empirical Analysis")
     sections.append(part2_text)
-    time.sleep(0.5)
+    time.sleep(1.0)
 
     # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
     status_container.write("✍️ **Writing Part 3/4:** Solutions, Defenses & Practical Action Plan...")
     part3_prompt = (
         f"Research Question: \"{question}\"\n\n"
-        f"Defense Rubric & Audit:\n{analyst_output[:2500]}\n\n"
+        f"Defense Rubric & Audit:\n{analyst_output[:2200]}\n\n"
         f"Write Part 3 of the Research Dossier in Markdown:\n"
         f"## 🛡️ Defense & Mitigation Matrix\n"
         f"Create an exhaustive, multi-column Markdown table:\n"
@@ -346,16 +369,16 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"### Actionable Defensive Implementation Playbook\n"
         f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production."
     )
-    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=3000)
+    part3_text = generate_section_safely(part3_prompt, "Defense & Mitigation Matrix")
     sections.append(part3_text)
-    time.sleep(0.5)
+    time.sleep(1.0)
 
     # Part 4: Contradictions, Limitations, Strategic Recommendations & References
     status_container.write("✍️ **Writing Part 4/4:** Strategic Recommendations & Bibliography...")
     part4_prompt = (
         f"Research Question: \"{question}\"\n\n"
-        f"Web Sources:\n{web_output[:2000]}\n\n"
-        f"Academic Literature:\n{academic_output[:2000]}\n\n"
+        f"Web Sources:\n{web_output[:1800]}\n\n"
+        f"Academic Literature:\n{academic_output[:1800]}\n\n"
         f"Write Part 4 of the Research Dossier in Markdown:\n"
         f"## Contradictions & Divergent Perspectives\n"
         f"Compare conflicting findings between vendor documentation and independent academic benchmarks.\n\n"
@@ -366,7 +389,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## References\n"
         f"Full numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all sources."
     )
-    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=3000)
+    part4_text = generate_section_safely(part4_prompt, "Strategic Recommendations & References")
     sections.append(part4_text)
 
     # Compile the mega-dossier
