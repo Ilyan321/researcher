@@ -410,11 +410,15 @@ def main():
                     if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
                         st.session_state.current_session_id = s_id
                         loaded_report = get_report(s_id)
-                        if loaded_report:
+                        if loaded_report and loaded_report.get("markdown_content"):
                             st.session_state.research_result = {
                                 "question": s_title,
                                 "report": loaded_report.get("markdown_content", ""),
                             }
+                        else:
+                            st.session_state.research_result = None
+                            st.session_state.example_q = s_title
+                            st.session_state.session_notice = f"⚠️ Investigation '{s_title}' was interrupted earlier and has no saved report. Click 'Launch Deep Research' below to run it now."
                         loaded_messages = get_chat_messages(s_id)
                         st.session_state.chat_history = loaded_messages
                         st.rerun()
@@ -481,6 +485,10 @@ def main():
             with col_e3:
                 if st.button("Developer Productivity Impact", use_container_width=True):
                     st.session_state.example_q = "What are the benefits and empirical limitations of AI coding assistants?"
+
+        if "session_notice" in st.session_state and st.session_state.session_notice:
+            st.warning(st.session_state.session_notice)
+            st.session_state.session_notice = None
 
         default_question = st.session_state.get("example_q", "")
 
