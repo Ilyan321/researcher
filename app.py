@@ -78,6 +78,8 @@ if "pipeline_details" not in st.session_state:
     st.session_state.pipeline_details = {}
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "is_new_session_intent" not in st.session_state:
+    st.session_state.is_new_session_intent = False
 
 
 def sanitize_markdown_report(text: str) -> str:
@@ -305,8 +307,13 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     # Step 5: Multi-Part Synthesis Writer (Deep Chunked Generation)
     status_container.write("✍️ **Step 5/5: Authoring Your Complete Report** — Writing comprehensive, publication-ready dossier...")
     writer_system = (
-        "Role: Senior Technical Research Writer & Systems Analyst\n"
-        "Goal: Author comprehensive, highly detailed, academic-grade research sections with exhaustive empirical analysis, markdown tables, and numbered citations [1], [2]. Never summarize briefly when deep technical explanation is possible."
+        "Role: Senior Principal Systems Architect & Technical Research Author\n"
+        "Goal: Author authoritative, highly detailed, publication-grade research monographs with exhaustive empirical analysis, markdown comparison tables, and numbered citations [1], [2].\n"
+        "Humanized Writing Directives:\n"
+        "1. Tone: Write with the sharp, unambiguous voice of a veteran principal engineer and research scientist. Avoid generic textbook summaries.\n"
+        "2. Dynamic Cadence (High Burstiness): Radically vary sentence length. Pair punchy, concise assertions with detailed multi-clause technical proofs.\n"
+        "3. Anti-AI Cliché Filter: Strictly avoid AI filler phrases (e.g., 'delve', 'tapestry', 'testament', 'crucial', 'pivotal', 'game-changer', 'furthermore', 'moreover', 'in conclusion', 'beacon', 'multifaceted').\n"
+        "4. Quantitative Depth: Prioritize concrete protocol mechanics, memory layout offsets, CPU cycle counts, and empirical failure modes."
     )
     
     sections = []
@@ -409,29 +416,19 @@ def main():
     detected_key = get_groq_api_key()
     active_api_key = detected_key
 
-    # Auto-restore active session on refresh from query params or most recent session
-    if st.session_state.research_result is None and not st.session_state.is_researching:
+    # Auto-restore active session ONLY if URL query param has session_id and user is not creating new research
+    if st.session_state.research_result is None and not st.session_state.is_researching and not st.session_state.get("is_new_session_intent", False):
         query_session_id = st.query_params.get("session_id")
-        target_s_id = query_session_id
-        if not target_s_id:
-            all_s = get_all_sessions()
-            for s in all_s:
-                s_rep = get_report(s["id"])
-                if s_rep and s_rep.get("markdown_content"):
-                    target_s_id = s["id"]
-                    break
-
-        if target_s_id:
-            s_obj = get_session(target_s_id)
-            rep_obj = get_report(target_s_id)
+        if query_session_id:
+            s_obj = get_session(query_session_id)
+            rep_obj = get_report(query_session_id)
             if rep_obj and rep_obj.get("markdown_content"):
-                st.session_state.current_session_id = target_s_id
+                st.session_state.current_session_id = query_session_id
                 st.session_state.research_result = {
                     "question": (s_obj or {}).get("title", "Research Dossier"),
                     "report": rep_obj.get("markdown_content", "")
                 }
-                st.session_state.chat_history = get_chat_messages(target_s_id)
-                st.query_params["session_id"] = target_s_id
+                st.session_state.chat_history = get_chat_messages(query_session_id)
 
     # Sidebar: Multi-Session Management & Workspace
     with st.sidebar:
@@ -439,6 +436,7 @@ def main():
         st.caption("Autonomous Multi-Agent Deep Research Intelligence")
 
         if st.button("➕ New Research", type="primary", use_container_width=True):
+            st.session_state.is_new_session_intent = True
             st.session_state.current_session_id = None
             st.session_state.research_result = None
             st.session_state.pipeline_details = {}
@@ -465,6 +463,7 @@ def main():
                 c_btn, c_del = st.columns([5, 1])
                 with c_btn:
                     if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
+                        st.session_state.is_new_session_intent = False
                         st.session_state.current_session_id = s_id
                         st.query_params["session_id"] = s_id
                         loaded_report = get_report(s_id)
@@ -566,6 +565,7 @@ def main():
         )
 
         if start_btn:
+            st.session_state.is_new_session_intent = False
             if not question.strip():
                 st.error("Please enter a research question before starting.")
             elif not active_api_key:
@@ -621,8 +621,10 @@ def main():
             st.markdown(f"### 📋 Active Dossier: *{active_q}*")
         with col_head_btn:
             if st.button("➕ New Topic", key="btn_top_new_topic", use_container_width=True):
+                st.session_state.is_new_session_intent = True
                 st.session_state.current_session_id = None
                 st.session_state.research_result = None
+                st.session_state.pipeline_details = {}
                 st.session_state.chat_history = []
                 st.session_state.example_q = ""
                 st.query_params.clear()
