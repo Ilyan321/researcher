@@ -51,27 +51,35 @@ def perform_web_search(query: str, max_results: int = 5) -> str:
     except Exception:
         pass
 
-    # 2. Fallback: DuckDuckGo Instant Answer API / Wikipedia Search API
+    # 2. Fallback: Wikipedia Full-Text Search API
     if not results:
-        try:
-            # Try Wikipedia OpenSearch for high-authority foundational technical articles
-            wiki_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={urllib.parse.quote_plus(clean_query)}&limit={max_results}&namespace=0&format=json"
-            req = urllib.request.Request(wiki_url, headers={"User-Agent": "ResearcherAI/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                wiki_data = json.loads(resp.read().decode("utf-8"))
-                if len(wiki_data) >= 4:
-                    titles = wiki_data[1]
-                    snippets = wiki_data[2]
-                    urls = wiki_data[3]
-                    for t, s, u in zip(titles, snippets, urls):
+        queries_to_try = [clean_query]
+        words = clean_query.split()
+        if len(words) > 3:
+            queries_to_try.append(" ".join(words[:3]))
+            queries_to_try.append(" ".join(words[:2]))
+
+        for q_try in queries_to_try:
+            try:
+                wiki_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote_plus(q_try)}&srlimit={max_results}&format=json"
+                headers = {"User-Agent": "ResearcherAI/1.0 (Educational AI Research Assistant; mailto:contact@example.com)"}
+                req = urllib.request.Request(wiki_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    wiki_data = json.loads(resp.read().decode("utf-8"))
+                    for item in wiki_data.get("query", {}).get("search", []):
+                        title = item.get("title", "Untitled")
+                        snippet = re.sub(r"<[^>]+>", "", item.get("snippet", ""))
+                        page_url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(title.replace(' ', '_'))}"
                         results.append({
-                            "title": t,
-                            "url": u,
-                            "snippet": s if s else f"Wikipedia technical reference for {t}",
+                            "title": title,
+                            "url": page_url,
+                            "snippet": snippet if snippet else f"Wikipedia technical reference for {title}",
                             "source_type": "encyclopedic_web",
                         })
-        except Exception:
-            pass
+                if results:
+                    break
+            except Exception:
+                pass
 
     if not results:
         return json.dumps({
