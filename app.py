@@ -33,6 +33,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Clean Professional UI: Remove default Streamlit footer, embed toolbar, and watermarks
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden; display: none !important;}
+    footer {visibility: hidden; display: none !important;}
+    header {visibility: hidden; display: none !important;}
+    div[data-testid="stEmbedToolbar"] {visibility: hidden; display: none !important;}
+    div[data-testid="stDecoration"] {visibility: hidden; display: none !important;}
+    div[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
+    .viewerBadge_container__1QSob, .viewerBadge_link__1S137, [data-testid="manage-app-button"] {display: none !important; visibility: hidden !important;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Initialize Session State
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
