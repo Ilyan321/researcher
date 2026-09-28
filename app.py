@@ -536,7 +536,13 @@ def main():
                             delete_session(session_id)
                             st.session_state.current_session_id = None
                         status_box.update(label="❌ Research Process Interrupted", state="error", expanded=True)
-                        st.error(f"Error during research execution: {str(e)}")
+                        st.error(f"**Research Pipeline Notice:** {str(e)}")
+                        st.info(
+                            "💡 **Troubleshooting Tips:**\n"
+                            "- If you received a rate limit warning, wait a moment and retry — Groq rate limits reset within seconds.\n"
+                            "- For very long reports, the pipeline automatically compresses context and downsizes completion tokens.\n"
+                            "- Verify that your Groq API key is valid and active."
+                        )
 
     # Results & Follow-Up Q&A View
     if st.session_state.research_result:
