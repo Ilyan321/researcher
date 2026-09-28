@@ -3,3 +3,5 @@ streamlit
 requests
 beautifulsoup4
 duckduckgo-search
+supabase
+fastembed

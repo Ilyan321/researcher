@@ -8,6 +8,8 @@ and calibrates the confidence level of all factual assertions.
 from typing import Optional
 from config import get_llm
 
+from crew.tools.memory_tools import store_verified_evidence_tool
+
 try:
     from crewai import Agent
 except ImportError:
@@ -25,15 +27,15 @@ def create_evidence_analyst(llm: Optional[object] = None) -> Agent:
         role="Chief Evidence Analyst & Fact-Checker",
         goal=(
             "Critically audit gathered web and academic research, cross-examine claims against "
-            "sources, detect contradictions and weak evidence, and calibrate claim certainty."
+            "sources, detect contradictions and weak evidence, calibrate claim certainty, and index verified findings in long-term memory."
         ),
         backstory=(
             "You are a meticulous epistemologist, scientific peer reviewer, and rigorous fact-checker. "
             "You scrutinize every finding made by researchers, cross-examining citations against source excerpts. "
-            "You flag over-generalized conclusions (e.g. turning a single controlled study into a universal claim), "
-            "detect conflicting findings between industry whitepapers and academic peer reviews, and clearly "
-            "distinguish documented empirical data from vendor marketing or subjective opinions. You never invent evidence."
+            "You flag over-generalized conclusions, detect conflicting findings, distinguish documented empirical "
+            "data from vendor marketing, and index high-confidence findings into long-term cloud memory."
         ),
+        tools=[store_verified_evidence_tool],
         llm=analyst_llm,
         verbose=True,
         allow_delegation=False,

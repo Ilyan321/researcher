@@ -7,6 +7,8 @@ subtopics, establishing required evidence criteria, and formulating the research
 from typing import Optional
 from config import get_llm
 
+from crew.tools.memory_tools import recall_past_research_tool
+
 try:
     from crewai import Agent
 except ImportError:
@@ -24,14 +26,15 @@ def create_manager(llm: Optional[object] = None) -> Agent:
         role="Lead Research Manager & Strategist",
         goal=(
             "Deconstruct the research question into structured subtopics, identify necessary "
-            "empirical evidence, and devise an optimal multi-agent research strategy."
+            "empirical evidence, consult long-term memory for prior findings, and devise an optimal research strategy."
         ),
         backstory=(
             "You are a distinguished research director with extensive experience structuring "
             "scientific, technical, and academic inquiries. You excel at scoping investigations, "
-            "establishing clear sub-questions, and guiding specialized research teams without "
-            "duplicating search efforts or performing search tasks yourself."
+            "recalling prior verified evidence from long-term memory to prevent redundant work, "
+            "and guiding specialized research teams with precision."
         ),
+        tools=[recall_past_research_tool],
         llm=manager_llm,
         verbose=True,
         allow_delegation=False,

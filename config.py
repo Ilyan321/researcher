@@ -11,6 +11,27 @@ DEFAULT_TEMPERATURE = 0.2
 REQUEST_TIMEOUT = 15  # seconds
 USER_AGENT = "ResearcherAI/1.0 (Educational AI Research Assistant; mailto:contact@example.com)"
 
+# Supabase configuration
+DEFAULT_SUPABASE_URL = "https://nsedecdyjuzukaatobig.supabase.co"
+DEFAULT_SUPABASE_KEY = "sb_publishable_df_nmctIrA7xEA5nLwbfAw_oVn_67f8"
+
+
+def get_supabase_credentials() -> tuple[Optional[str], Optional[str]]:
+    """Retrieve Supabase URL and Key from environment or Streamlit secrets."""
+    url = os.getenv("SUPABASE_URL", DEFAULT_SUPABASE_URL)
+    key = os.getenv("SUPABASE_KEY", DEFAULT_SUPABASE_KEY)
+
+    try:
+        import streamlit as st
+        if "SUPABASE_URL" in st.secrets:
+            url = st.secrets["SUPABASE_URL"]
+        if "SUPABASE_KEY" in st.secrets:
+            key = st.secrets["SUPABASE_KEY"]
+    except Exception:
+        pass
+
+    return url, key
+
 
 def get_groq_api_key() -> Optional[str]:
     """Retrieve Groq API key from environment variable or Streamlit secrets."""

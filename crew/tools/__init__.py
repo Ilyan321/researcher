@@ -3,6 +3,7 @@
 from crew.tools.web_search import web_search_tool, perform_web_search
 from crew.tools.web_reader import web_reader_tool, read_url_content
 from crew.tools.academic_search import academic_search_tool, perform_academic_search
+from crew.tools.memory_tools import recall_past_research_tool, store_verified_evidence_tool
 
 __all__ = [
     "web_search_tool",
@@ -11,4 +12,6 @@ __all__ = [
     "read_url_content",
     "academic_search_tool",
     "perform_academic_search",
+    "recall_past_research_tool",
+    "store_verified_evidence_tool",
 ]
