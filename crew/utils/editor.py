@@ -135,7 +135,7 @@ def execute_llm_call(
 ) -> str:
     """Robust Groq API caller with multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
-    models_cascade = [model_name, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    models_cascade = [model_name, "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
     
     payload = {
         "model": models_cascade[0],

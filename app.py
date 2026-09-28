@@ -84,8 +84,8 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
     import re
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # Priority cascade of models in case of rate-limiting
-    models_cascade = [model_name, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    # Priority cascade of active non-deprecated models in case of rate-limiting
+    models_cascade = [model_name, "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
     
     payload = {
         "model": models_cascade[0],
