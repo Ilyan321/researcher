@@ -17,10 +17,10 @@
 - [x] **Phase 10: Streamlit UI Integration & Live Progress Tracking** (`app.py`)
 - [x] **Phase 11: Deployment Readiness & Final Documentation** (`README.md`, `PLAN.md`, project-wide syntax verification)
 
-## GitHub Issues Tracker
-- All 12 Core Development Issues (#1 through #12) on `Ilyan321/researcher` are completed, verified, and closed.
-- Future enhancement backlog recorded as open issues:
-  - #13: Multi-Format Export Support (PDF, DOCX, LaTeX)
-  - #14: Automated Defense & Mitigation Matrix for Security Inquiries
-  - #15: Cloud Vector Store Integration & Long-Term Agent Memory
-  - #16: Interactive Multi-Agent Follow-Up & Deep Dive Q&A
+## Maintenance & Bugfix History
+- [x] **Hotfix: Groq API Error 400 & Context Length Recovery (2026-09-28)**
+  - Unwrapped rich Groq JSON error diagnostics in [`app.py`](file:///home/ilyan/researcher/app.py) & [`crew/utils/editor.py`](file:///home/ilyan/researcher/crew/utils/editor.py).
+  - Auto-recovers from `400 context_length_exceeded` errors with dynamic middle-out prompt compression and token downsizing.
+  - Aligned default models to active 128k context Groq models (`llama-3.3-70b-versatile`) with automatic cascade fallback on invalid model names.
+  - Added user-facing troubleshooting tips and verified with unit test suite in [`scripts/test_error_handling_recovery.py`](file:///home/ilyan/researcher/scripts/test_error_handling_recovery.py).
+
