@@ -3,12 +3,14 @@
 A research-focused multi-agent system powered by CrewAI, Groq (openai/gpt-oss-120b), and Supabase.
 """
 
+from __future__ import annotations
 import os
 import re
 import json
 import time
 import urllib.request
 import urllib.error
+from typing import Optional, Dict, Any, List, Tuple
 import streamlit as st
 from config import get_groq_api_key, DEFAULT_MODEL
 from crew.tools.web_search import perform_web_search
