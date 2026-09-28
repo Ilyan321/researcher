@@ -131,13 +131,13 @@ def execute_llm_call(
     temperature: float = 0.2,
     max_tokens: int = 4096,
     max_retries: int = 4,
-    model_name: str = "openai/gpt-oss-120b"
+    model_name: str = "llama-3.3-70b-versatile"
 ) -> str:
     """Robust Groq API caller with multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
     # Priority cascade of active non-deprecated models from GroqCloud
-    raw_cascade = [clean_model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b"]
+    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
@@ -186,6 +186,16 @@ def execute_llm_call(
                     except Exception:
                         pass
                 time.sleep(wait_sec)
+
+            elif e.code == 400 and any(k in err_text.lower() for k in ["tool_use_failed", "tool choice is none"]):
+                # Model emitted a pseudo tool call when tools were disabled - switch to standard instruction model
+                current_model = payload.get("model")
+                if "llama" not in current_model.lower():
+                    payload["model"] = "llama-3.3-70b-versatile"
+                else:
+                    payload["model"] = "llama-3.1-8b-instant"
+                time.sleep(1)
+                continue
 
             elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):
                 # Switch to next available model in cascade if model is invalid/deprecated

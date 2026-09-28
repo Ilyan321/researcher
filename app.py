@@ -80,14 +80,13 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 4, model_name: str = "openai/gpt-oss-120b") -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 4, model_name: str = "llama-3.3-70b-versatile") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
-    import re
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
-    # Priority cascade of active non-deprecated models from GroqCloud
-    raw_cascade = [clean_model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b"]
+    # Priority cascade of active non-deprecated models from GroqCloud (pure text instruction models prioritized)
+    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
@@ -137,8 +136,8 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                         pass
                 time.sleep(wait_sec)
 
-            elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):
-                # Switch to next available model in cascade if model is invalid/deprecated
+            elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["tool_use_failed", "tool choice", "tool_choice", "model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):
+                # Switch to next available model in cascade (e.g. llama-3.3-70b-versatile)
                 current_model = payload.get("model")
                 curr_idx = models_cascade.index(current_model) if current_model in models_cascade else 0
                 if curr_idx < len(models_cascade) - 1:
