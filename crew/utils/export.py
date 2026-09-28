@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional
 
 
 def _normalize_text(text: str) -> str:
-    """Normalize special unicode symbols (smart quotes, non-breaking hyphens) for clean rendering."""
+    """Normalize unicode symbols, superscripts, Greek letters, and emojis for clean PDF/DOCX rendering."""
     replacements = {
         "\u2011": "-",  # Non-breaking hyphen
         "\u2013": "-",  # En-dash
@@ -22,9 +22,48 @@ def _normalize_text(text: str) -> str:
         "\u2026": "...",  # Ellipsis
         "\u00a0": " ",  # Non-breaking space
         "\u202f": " ",  # Narrow no-break space
+        "≈": "~",
+        "≤": "<=",
+        "≥": ">=",
+        "≠": "!=",
+        "×": "x",
+        "±": "+/-",
+        "÷": "/",
+        "→": "->",
+        "←": "<-",
+        "⇒": "=>",
+        "µ": "u",
+        "μ": "u",
+        "σ": "sigma",
+        "α": "alpha",
+        "β": "beta",
+        "η": "eta",
+        "ρ": "rho",
+        "Δ": "Delta",
+        "λ": "lambda",
+        "π": "pi",
+        "Ø": "O",
+        "ø": "o",
+        "🛡️": "[Defense]",
+        "🛡": "[Defense]",
+        "📌": "[Note]",
+        "🔍": "[Audit]",
+        "📚": "[Academic]",
+        "⚖️": "[Analysis]",
+        "✍️": "[Synthesis]",
+        "■": "",
+        # Superscripts
+        "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
+        "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
+        "⁻": "^-", "⁺": "^+",
+        # Subscripts
+        "₀": "_0", "₁": "_1", "₂": "_2", "₃": "_3", "₄": "_4",
+        "₅": "_5", "₆": "_6", "₇": "_7", "₈": "_8", "₉": "_9",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
+    # Normalize <br> to newline or space in markdown text
+    text = re.sub(r"<br\s*/?>", " \n", text, flags=re.IGNORECASE)
     return text
 
 
