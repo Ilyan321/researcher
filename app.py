@@ -27,7 +27,7 @@ from crew.utils.editor import handle_follow_up_chat
 
 # Page configuration
 st.set_page_config(
-    page_title="Researcher AI",
+    page_title="Vesper AI — Autonomous Deep Research",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -273,8 +273,8 @@ def main():
 
     # Sidebar: Multi-Session Management & Workspace
     with st.sidebar:
-        st.markdown("## 🔬 Researcher AI")
-        st.caption("Autonomous Multi-Agent Deep Research System")
+        st.markdown("## 🔬 Vesper AI")
+        st.caption("Autonomous Multi-Agent Deep Research Intelligence")
 
         if st.button("➕ New Research", type="primary", use_container_width=True):
             st.session_state.current_session_id = None

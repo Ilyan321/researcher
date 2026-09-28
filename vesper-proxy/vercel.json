@@ -1,0 +1,10 @@
+{
+  "name": "vesper-researcher",
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://researcher-by-ilyan.streamlit.app/$1"
+    }
+  ]
+}
