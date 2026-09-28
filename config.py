@@ -3,8 +3,8 @@
 import os
 from typing import Optional
 
-# Default model configuration for Groq
-DEFAULT_MODEL = "groq/openai/gpt-oss-120b"
+# Default model configuration for Groq (production 128k context model)
+DEFAULT_MODEL = os.getenv("RESEARCHER_MODEL", "groq/llama-3.3-70b-versatile")
 DEFAULT_TEMPERATURE = 0.2
 
 # Tool and HTTP configurations

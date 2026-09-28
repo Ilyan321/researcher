@@ -79,13 +79,18 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "openai/gpt-oss-120b") -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "llama-3.3-70b-versatile") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
     import re
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # Priority cascade of active non-deprecated models in case of rate-limiting
-    models_cascade = [model_name, "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
+    # Priority cascade of active non-deprecated models in case of rate-limiting or model errors
+    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]
+    models_cascade = []
+    for m in raw_cascade:
+        if m and m not in models_cascade:
+            models_cascade.append(m)
     
     payload = {
         "model": models_cascade[0],
@@ -139,6 +144,16 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                     payload["model"] = next_model
 
                 time.sleep(wait_sec)
+
+            elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):
+                # Switch to next available model in cascade if model is invalid/deprecated
+                current_model = payload.get("model")
+                curr_idx = models_cascade.index(current_model) if current_model in models_cascade else 0
+                if curr_idx < len(models_cascade) - 1:
+                    payload["model"] = models_cascade[curr_idx + 1]
+                    time.sleep(1)
+                    continue
+                time.sleep(2)
 
             elif e.code == 413 or (e.code == 400 and any(k in err_text.lower() for k in ["context_length_exceeded", "context length", "too many tokens", "maximum context length", "max_tokens"])):
                 # Intelligently trim context from the middle to preserve prompt instructions
