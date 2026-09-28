@@ -130,12 +130,15 @@ def execute_llm_call(
     api_key: str,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    max_retries: int = 5
+    max_retries: int = 8,
+    model_name: str = "openai/gpt-oss-120b"
 ) -> str:
-    """Robust Groq API caller with rate limiting and exponential backoff."""
+    """Robust Groq API caller with multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
+    models_cascade = [model_name, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": models_cascade[0],
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -149,21 +152,47 @@ def execute_llm_call(
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
     }
 
+    last_error = None
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < max_retries - 1:
-                wait_time = [5, 10, 15, 25, 35][attempt]
-                time.sleep(wait_time)
+            last_error = e
+            err_text = ""
+            try:
+                err_text = e.read().decode("utf-8")
+            except Exception:
+                pass
+
+            if e.code == 429:
+                wait_sec = None
+                if "Retry-After" in e.headers:
+                    try:
+                        wait_sec = float(e.headers.get("Retry-After")) + 1.0
+                    except Exception:
+                        pass
+                if not wait_sec and err_text:
+                    m = re.search(r"try again in (\d+\.?\d*)s", err_text, re.IGNORECASE)
+                    if m:
+                        wait_sec = float(m.group(1)) + 1.0
+
+                if not wait_sec:
+                    wait_sec = [3, 6, 12, 20, 30, 45, 60, 60][min(attempt, 7)]
+
+                if attempt >= 1 and len(models_cascade) > 1:
+                    next_model = models_cascade[min(attempt, len(models_cascade) - 1)]
+                    payload["model"] = next_model
+
+                time.sleep(wait_sec)
+
             elif e.code == 413:
                 # If prompt is too large, trim middle of context while keeping instructions
                 user_msg = payload["messages"][1]["content"]
-                if len(user_msg) > 15000:
-                    payload["messages"][1]["content"] = user_msg[:5000] + "\n\n[...context omitted for brevity...]\n\n" + user_msg[-8000:]
+                if len(user_msg) > 12000:
+                    payload["messages"][1]["content"] = user_msg[:4000] + "\n\n[...context omitted for brevity...]\n\n" + user_msg[-6000:]
                 time.sleep(2)
             else:
                 if attempt < max_retries - 1:
@@ -171,11 +200,14 @@ def execute_llm_call(
                 else:
                     raise e
         except Exception as e:
+            last_error = e
             if attempt < max_retries - 1:
                 time.sleep(3)
             else:
                 raise e
 
+    if last_error:
+        raise last_error
     raise RuntimeError("Failed to complete LLM request after retries.")
 
 

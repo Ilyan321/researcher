@@ -79,11 +79,16 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 8192, max_retries: int = 6) -> str:
-    """Call Groq API with automatic rate-limit backoff, high token limit, and token budget management."""
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "openai/gpt-oss-120b") -> str:
+    """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
+    import re
     url = "https://api.groq.com/openai/v1/chat/completions"
+    
+    # Priority cascade of models in case of rate-limiting
+    models_cascade = [model_name, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": models_cascade[0],
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -97,6 +102,7 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
     }
 
+    last_error = None
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
@@ -104,30 +110,60 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < max_retries - 1:
-                wait_time = [4, 8, 16, 28, 45, 60][attempt]
-                time.sleep(wait_time)
+            last_error = e
+            err_text = ""
+            try:
+                err_text = e.read().decode("utf-8")
+            except Exception:
+                pass
+
+            if e.code == 429:
+                # 1. Look for retry-after or dynamic wait time in error message
+                wait_sec = None
+                if "Retry-After" in e.headers:
+                    try:
+                        wait_sec = float(e.headers.get("Retry-After")) + 1.0
+                    except Exception:
+                        pass
+                if not wait_sec and err_text:
+                    m = re.search(r"try again in (\d+\.?\d*)s", err_text, re.IGNORECASE)
+                    if m:
+                        wait_sec = float(m.group(1)) + 1.0
+
+                if not wait_sec:
+                    wait_sec = [3, 6, 12, 20, 30, 45, 60, 60][min(attempt, 7)]
+
+                # Switch to fast fallback model if primary model hits rate limit
+                if attempt >= 1 and len(models_cascade) > 1:
+                    next_model = models_cascade[min(attempt, len(models_cascade) - 1)]
+                    payload["model"] = next_model
+
+                time.sleep(wait_sec)
+
             elif e.code == 413:
                 # Intelligently trim context from the middle to preserve prompt instructions
                 current_user_content = payload["messages"][1]["content"]
-                if len(current_user_content) > 12000:
+                if len(current_user_content) > 10000:
                     payload["messages"][1]["content"] = (
-                        current_user_content[:4000]
+                        current_user_content[:3500]
                         + "\n\n[... Context compressed to fit LLM window ...]\n\n"
-                        + current_user_content[-6000:]
+                        + current_user_content[-4500:]
                     )
                 time.sleep(2)
             else:
                 if attempt < max_retries - 1:
-                    time.sleep(4)
+                    time.sleep(3)
                 else:
                     raise e
         except Exception as e:
+            last_error = e
             if attempt < max_retries - 1:
-                time.sleep(4)
+                time.sleep(3)
             else:
                 raise e
 
+    if last_error:
+        raise last_error
     raise RuntimeError("Failed to complete LLM request after retries.")
 
 
@@ -232,7 +268,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## Key Findings\n"
         f"Numbered, high-priority findings with inline bracketed citations (e.g. [1], [2]) and a summary matrix table."
     )
-    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=6000)
+    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=4000)
     sections.append(part1_text)
     time.sleep(3)
 
@@ -248,7 +284,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"Provide exhaustive technical breakdowns structured by sub-topics, including empirical benchmark statistics, vulnerability models, and case studies.\n"
         f"Include detailed markdown comparison tables where appropriate."
     )
-    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=6000)
+    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=4000)
     sections.append(part2_text)
     time.sleep(3)
 
@@ -264,7 +300,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"### Actionable Defensive Implementation Playbook\n"
         f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production."
     )
-    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=6000)
+    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=4000)
     sections.append(part3_text)
     time.sleep(3)
 
@@ -284,7 +320,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## References\n"
         f"Full numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all sources."
     )
-    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=6000)
+    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=4000)
     sections.append(part4_text)
 
     # Compile the mega-dossier
