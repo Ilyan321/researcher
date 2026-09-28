@@ -251,22 +251,38 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     return pipeline_data
 
 
-def handle_follow_up(user_query: str, current_report: str, api_key: str, session_id: str = None) -> str:
-    """Handle surgical section edits or iterative follow-up deep dives on the active report."""
+def handle_follow_up(user_query: str, current_report: str, api_key: str, session_id: str = None) -> tuple[str, Optional[str]]:
+    """Handle ChatGPT-like conversation and intelligent dossier modifications.
+    
+    Returns:
+        tuple (reply_message, updated_report_or_none)
+    """
     system_prompt = (
-        "Role: Senior Research Editor & Fact Specialist\n"
-        "Goal: You are assisting the user in refining an existing research dossier or answering focused follow-up inquiries.\n"
-        "Instructions:\n"
-        "- If the user asks to modify, update, or expand a section, provide a concise explanation of the change followed by the updated full report or section markdown.\n"
-        "- If the user asks a clarification or deep-dive question, answer directly based on the dossier and empirical facts.\n"
-        "- Maintain scientific rigor and preserve all citation references."
+        "Role: Senior Research Editor & Multi-Agent Lead\n"
+        "Goal: You are assisting the user in conversing with the research team, answering deep-dive questions, "
+        "or directly modifying and expanding the active research dossier.\n\n"
+        "Decision Rules:\n"
+        "1. If the user asks a QUESTION or request for clarification (e.g., 'What does section 2 mean?', 'Explain CRYSTALS-Kyber'):\n"
+        "   - Provide an insightful, citation-backed answer.\n"
+        "   - Do NOT output the full report.\n"
+        "2. If the user requests a MODIFICATION, EDIT, EXPANSION, or REWRITE of the dossier (e.g., 'Add a section on X', 'Update section 3 to focus on Y', 'Change the title', 'Rewrite conclusion'):\n"
+        "   - First, write a brief, polite explanation of the changes made (e.g., 'I have updated Section 3 to include...').\n"
+        "   - Then, include the exact delimiter '<<<UPDATED_DOSSIER>>>' on a new line, followed by the complete updated Markdown dossier.\n"
+        "Maintain academic rigor, structure, tables, and citations."
     )
     user_prompt = (
-        f"Current Research Dossier:\n{current_report[:4000]}\n\n"
-        f"User Follow-Up / Modification Request:\n\"{user_query}\""
+        f"Current Research Dossier:\n{current_report}\n\n"
+        f"User Instruction / Inquiry:\n\"{user_query}\""
     )
-    response = call_groq_api(system_prompt, user_prompt, api_key, temperature=0.2)
-    return response
+    response = call_groq_api(system_prompt, user_prompt, api_key, temperature=0.2, max_tokens=8192)
+    
+    if "<<<UPDATED_DOSSIER>>>" in response:
+        parts = response.split("<<<UPDATED_DOSSIER>>>")
+        reply_msg = parts[0].strip()
+        updated_report = parts[1].strip()
+        return reply_msg, updated_report
+    else:
+        return response.strip(), None
 
 
 def main():
@@ -298,22 +314,33 @@ def main():
                 s_id = s.get("id")
                 s_title = s.get("title", "Untitled Research")
                 is_active = (s_id == st.session_state.current_session_id)
-                btn_label = f"📌 {s_title[:28]}..." if len(s_title) > 28 else f"📄 {s_title}"
+                btn_label = f"📌 {s_title[:24]}..." if len(s_title) > 24 else f"📄 {s_title}"
                 if is_active:
                     btn_label = f"👉 {btn_label}"
 
-                if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
-                    st.session_state.current_session_id = s_id
-                    # Load report and chat history
-                    loaded_report = get_report(s_id)
-                    if loaded_report:
-                        st.session_state.research_result = {
-                            "question": s_title,
-                            "report": loaded_report.get("markdown_content", ""),
-                        }
-                    loaded_messages = get_chat_messages(s_id)
-                    st.session_state.chat_history = loaded_messages
-                    st.rerun()
+                c_btn, c_del = st.columns([5, 1])
+                with c_btn:
+                    if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
+                        st.session_state.current_session_id = s_id
+                        loaded_report = get_report(s_id)
+                        if loaded_report:
+                            st.session_state.research_result = {
+                                "question": s_title,
+                                "report": loaded_report.get("markdown_content", ""),
+                            }
+                        loaded_messages = get_chat_messages(s_id)
+                        st.session_state.chat_history = loaded_messages
+                        st.rerun()
+
+                with c_del:
+                    if st.button("🗑️", key=f"del_session_{s_id}", help="Delete this research session"):
+                        from crew.memory.session_manager import delete_session
+                        delete_session(s_id)
+                        if st.session_state.current_session_id == s_id:
+                            st.session_state.current_session_id = None
+                            st.session_state.research_result = None
+                            st.session_state.chat_history = []
+                        st.rerun()
         else:
             st.caption("No saved investigations yet. Start a new topic below!")
 
@@ -470,8 +497,8 @@ def main():
                     st.button("📜 LaTeX (Unavailable)", disabled=True, use_container_width=True)
 
         with tab2:
-            st.markdown("#### 💬 Follow-Up & Surgical Adjustments")
-            st.caption("Ask questions about this dossier or request targeted edits without re-running the full pipeline.")
+            st.markdown("#### 💬 Interactive Research Chat & Agent Editor")
+            st.caption("Talk to the multi-agent team just like ChatGPT! Ask deep-dive questions or instruct agents to edit, expand, or rewrite any part of the research.")
 
             # Render existing chat turns
             for msg in st.session_state.chat_history:
@@ -481,18 +508,32 @@ def main():
                     st.markdown(content)
 
             # Chat input for follow-ups
-            follow_up_prompt = st.chat_input("Ask a follow-up question or request an edit (e.g. 'Add a mitigation matrix for section 3')...")
+            follow_up_prompt = st.chat_input("Talk to agents or request edits (e.g., 'Rewrite section 2 to add 2026 data', 'Explain Kyber in simple terms')...")
             if follow_up_prompt:
                 # Add user message
                 st.session_state.chat_history.append({"role": "user", "content": follow_up_prompt})
                 if st.session_state.current_session_id:
                     add_chat_message(st.session_state.current_session_id, "user", follow_up_prompt)
 
-                with st.spinner("🤖 Processing follow-up with research context..."):
-                    reply = handle_follow_up(follow_up_prompt, report_text, active_api_key, session_id=st.session_state.current_session_id)
-                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                with st.spinner("🤖 Multi-Agent team is analyzing request and applying edits..."):
+                    reply_msg, updated_report = handle_follow_up(
+                        follow_up_prompt,
+                        report_text,
+                        active_api_key,
+                        session_id=st.session_state.current_session_id
+                    )
+
+                    # Save assistant reply to chat
+                    st.session_state.chat_history.append({"role": "assistant", "content": reply_msg})
                     if st.session_state.current_session_id:
-                        add_chat_message(st.session_state.current_session_id, "assistant", reply)
+                        add_chat_message(st.session_state.current_session_id, "assistant", reply_msg)
+
+                    # If an updated dossier was generated, apply it in-place and save to Supabase
+                    if updated_report:
+                        st.session_state.research_result["report"] = updated_report
+                        if st.session_state.current_session_id:
+                            save_report(st.session_state.current_session_id, updated_report)
+                        st.toast("✅ Active dossier revised & synced with PDF, DOCX, and LaTeX!", icon="📝")
 
                 st.rerun()
 
