@@ -195,10 +195,27 @@ def execute_llm_call(
                     payload["messages"][1]["content"] = user_msg[:4000] + "\n\n[...context omitted for brevity...]\n\n" + user_msg[-6000:]
                 time.sleep(2)
             else:
+                formatted_err = None
+                try:
+                    if err_text:
+                        err_json = json.loads(err_text)
+                        if "error" in err_json:
+                            err_obj = err_json["error"]
+                            msg = err_obj.get("message", err_text)
+                            err_type = err_obj.get("type", "api_error")
+                            code = err_obj.get("code", "")
+                            code_str = f" [{code}]" if code else ""
+                            formatted_err = RuntimeError(f"Groq API Error {e.code}{code_str} ({err_type}): {msg}")
+                except Exception:
+                    pass
+                if not formatted_err:
+                    formatted_err = RuntimeError(f"Groq API HTTP Error {e.code}: {e.reason}" + (f" - {err_text[:300]}" if err_text else ""))
+                last_error = formatted_err
+
                 if attempt < max_retries - 1:
                     time.sleep(3)
                 else:
-                    raise e
+                    raise formatted_err
         except Exception as e:
             last_error = e
             if attempt < max_retries - 1:
