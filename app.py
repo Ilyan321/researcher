@@ -231,7 +231,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     )
     plan_output = call_groq_api(manager_system, manager_prompt, api_key, temperature=0.2)
     pipeline_data["plan"] = plan_output
-    time.sleep(2)
+    time.sleep(0.5)
 
     # Step 2: Web Researcher
     status_container.write("🌐 **Step 2/5: Gathering Web Intelligence** — Searching trusted online sources, reports, and industry news...")
@@ -241,7 +241,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     web_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nSearch Data:\n{search_json}\nSynthesize web findings into a structured list with exact URLs."
     web_output = call_groq_api(web_system, web_prompt, api_key, temperature=0.2)
     pipeline_data["web_findings"] = web_output
-    time.sleep(2)
+    time.sleep(0.5)
 
     # Step 3: Academic Researcher
     status_container.write("📚 **Step 3/5: Finding Scientific Literature** — Querying peer-reviewed academic papers, ArXiv, and journals...")
@@ -251,7 +251,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     academic_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nAcademic Data:\n{academic_json}\nSynthesize 3 key academic papers into a concise summary with URLs/DOIs."
     academic_output = call_groq_api(academic_system, academic_prompt, api_key, temperature=0.2)
     pipeline_data["academic_findings"] = academic_output
-    time.sleep(2)
+    time.sleep(0.5)
 
     # Step 4: Evidence Analyst
     status_container.write("⚖️ **Step 4/5: Fact-Checking & Verification** — Auditing evidence, cross-referencing claims, and eliminating bias...")
@@ -279,7 +279,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     except Exception:
         pass
 
-    time.sleep(2)
+    time.sleep(0.5)
 
     # Step 5: Multi-Part Synthesis Writer (Deep Chunked Generation)
     status_container.write("✍️ **Step 5/5: Authoring Your Complete Report** — Writing comprehensive, publication-ready dossier...")
@@ -305,9 +305,9 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## Key Findings\n"
         f"Numbered, high-priority findings with inline bracketed citations (e.g. [1], [2]) and a summary matrix table."
     )
-    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=4000)
+    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=3000)
     sections.append(part1_text)
-    time.sleep(3)
+    time.sleep(0.5)
 
     # Part 2: Deep Empirical Analysis
     status_container.write("✍️ **Writing Part 2/4:** In-Depth Analysis & Case Studies...")
@@ -321,9 +321,9 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"Provide exhaustive technical breakdowns structured by sub-topics, including empirical benchmark statistics, vulnerability models, and case studies.\n"
         f"Include detailed markdown comparison tables where appropriate."
     )
-    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=4000)
+    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=3000)
     sections.append(part2_text)
-    time.sleep(3)
+    time.sleep(0.5)
 
     # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
     status_container.write("✍️ **Writing Part 3/4:** Solutions, Defenses & Practical Action Plan...")
@@ -337,9 +337,9 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"### Actionable Defensive Implementation Playbook\n"
         f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production."
     )
-    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=4000)
+    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=3000)
     sections.append(part3_text)
-    time.sleep(3)
+    time.sleep(0.5)
 
     # Part 4: Contradictions, Limitations, Strategic Recommendations & References
     status_container.write("✍️ **Writing Part 4/4:** Strategic Recommendations & Bibliography...")
@@ -357,7 +357,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"## References\n"
         f"Full numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all sources."
     )
-    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=4000)
+    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=3000)
     sections.append(part4_text)
 
     # Compile the mega-dossier
