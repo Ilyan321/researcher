@@ -165,32 +165,87 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
 
     time.sleep(1)
 
-    # Step 5: Research Writer
-    status_container.write("✍️ **Step 5/5: Synthesis Writer** — Compiling publication-grade research dossier with Defense Matrix...")
+    # Step 5: Multi-Part Synthesis Writer (Deep Chunked Generation)
+    status_container.write("✍️ **Step 5/5: Synthesis Writer** — Initiating Multi-Part Exhaustive Dossier Synthesis...")
     writer_system = (
         "Role: Senior Technical Research Writer & Systems Analyst\n"
-        "Goal: Synthesize multi-agent research into a publication-grade Markdown report with Defense Matrix and numbered citations."
+        "Goal: Author comprehensive, highly detailed, academic-grade research sections with exhaustive empirical analysis, markdown tables, and numbered citations [1], [2]. Never summarize briefly when deep technical explanation is possible."
     )
-    writer_prompt = (
+    
+    sections = []
+
+    # Part 1: Executive Summary, Scope & Key Findings
+    status_container.write("✍️ **Synthesizing Part 1/4:** Executive Summary, Scope & Key Findings...")
+    part1_prompt = (
         f"Research Question: \"{question}\"\n\n"
-        f"Web Evidence:\n{web_output[:1800]}\n\n"
-        f"Academic Evidence:\n{academic_output[:1800]}\n\n"
-        f"Evidence Audit Matrix & Defense Rubric:\n{analyst_output[:1800]}\n\n"
-        f"Produce the final Research Report in Markdown:\n"
-        f"# [Title]\n"
+        f"Web Evidence:\n{web_output[:2000]}\n\n"
+        f"Academic Evidence:\n{academic_output[:2000]}\n\n"
+        f"Write Part 1 of the Research Dossier in Markdown:\n"
+        f"# {question}\n\n"
         f"## Executive Summary\n"
+        f"A deep, comprehensive, high-impact synthesis of the core findings and strategic takeaway.\n\n"
         f"## Research Question & Scope\n"
-        f"## Key Findings (with [1], [2] citations)\n"
-        f"## Detailed Empirical Analysis\n"
-        f"## 🛡️ Defense & Mitigation Matrix\n"
-        f"| Threat / Risk Vector | Severity | Recommended Control & Provenance Attestation | Operational Trade-offs |\n"
-        f"Include a concise, step-by-step Defensive Implementation Playbook.\n\n"
-        f"## Contradictions & Divergent Perspectives\n"
-        f"## Methodological Limitations\n"
-        f"## Strategic Recommendations & Conclusion\n"
-        f"## References (Numbered list with URLs)"
+        f"Define the problem boundaries, technical dimensions, and target environments.\n\n"
+        f"## Key Findings\n"
+        f"Numbered, high-priority findings with inline bracketed citations (e.g. [1], [2]) and a summary matrix table."
     )
-    final_report = call_groq_api(writer_system, writer_prompt, api_key, temperature=0.2)
+    part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=6000)
+    sections.append(part1_text)
+    time.sleep(1)
+
+    # Part 2: Deep Empirical Analysis
+    status_container.write("✍️ **Synthesizing Part 2/4:** Deep Empirical Analysis & Attack Vectors...")
+    part2_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Web Findings:\n{web_output[:2000]}\n\n"
+        f"Academic Literature:\n{academic_output[:2000]}\n\n"
+        f"Evidence Audit:\n{analyst_output[:2000]}\n\n"
+        f"Write Part 2 of the Research Dossier in Markdown:\n"
+        f"## Detailed Empirical Analysis\n"
+        f"Provide exhaustive technical breakdowns structured by sub-topics, including empirical benchmark statistics, vulnerability models, and case studies.\n"
+        f"Include detailed markdown comparison tables where appropriate."
+    )
+    part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=6000)
+    sections.append(part2_text)
+    time.sleep(1)
+
+    # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
+    status_container.write("✍️ **Synthesizing Part 3/4:** 🛡️ Defense & Mitigation Matrix & Security Playbook...")
+    part3_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Defense Rubric & Audit:\n{analyst_output[:2500]}\n\n"
+        f"Write Part 3 of the Research Dossier in Markdown:\n"
+        f"## 🛡️ Defense & Mitigation Matrix\n"
+        f"Create an exhaustive, multi-column Markdown table:\n"
+        f"| Threat / Risk Vector | Severity | Recommended Control & Provenance Attestation (SLSA, Sigstore) | Detective Monitoring | Operational Trade-offs |\n\n"
+        f"### Actionable Defensive Implementation Playbook\n"
+        f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production."
+    )
+    part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=6000)
+    sections.append(part3_text)
+    time.sleep(1)
+
+    # Part 4: Contradictions, Limitations, Strategic Recommendations & References
+    status_container.write("✍️ **Synthesizing Part 4/4:** Contradictions, Limitations & Complete References...")
+    part4_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Web Sources:\n{web_output[:2000]}\n\n"
+        f"Academic Literature:\n{academic_output[:2000]}\n\n"
+        f"Write Part 4 of the Research Dossier in Markdown:\n"
+        f"## Contradictions & Divergent Perspectives\n"
+        f"Compare conflicting findings between vendor documentation and independent academic benchmarks.\n\n"
+        f"## Methodological Limitations\n"
+        f"Document open research challenges, dataset constraints, and measurement boundaries.\n\n"
+        f"## Strategic Recommendations & Conclusion\n"
+        f"Strategic synthesis and future-proof roadmap.\n\n"
+        f"## References\n"
+        f"Full numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all sources."
+    )
+    part4_text = call_groq_api(writer_system, part4_prompt, api_key, temperature=0.2, max_tokens=6000)
+    sections.append(part4_text)
+
+    # Compile the mega-dossier
+    final_report = "\n\n---\n\n".join(sections)
     pipeline_data["final_report"] = final_report
 
     return pipeline_data
