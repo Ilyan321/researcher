@@ -79,7 +79,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 8192, max_retries: int = 5) -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 8192, max_retries: int = 6) -> str:
     """Call Groq API with automatic rate-limit backoff, high token limit, and token budget management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
@@ -100,12 +100,12 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < max_retries - 1:
-                wait_time = [5, 10, 15, 25, 35][attempt]
+                wait_time = [4, 8, 16, 28, 45, 60][attempt]
                 time.sleep(wait_time)
             elif e.code == 413:
                 # Intelligently trim context from the middle to preserve prompt instructions
@@ -119,12 +119,12 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                 time.sleep(2)
             else:
                 if attempt < max_retries - 1:
-                    time.sleep(3)
+                    time.sleep(4)
                 else:
                     raise e
         except Exception as e:
             if attempt < max_retries - 1:
-                time.sleep(3)
+                time.sleep(4)
             else:
                 raise e
 
@@ -158,7 +158,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     )
     plan_output = call_groq_api(manager_system, manager_prompt, api_key, temperature=0.2)
     pipeline_data["plan"] = plan_output
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 2: Web Researcher
     status_container.write("🌐 **Step 2/5: Gathering Web Intelligence** — Searching trusted online sources, reports, and industry news...")
@@ -168,7 +168,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     web_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nSearch Data:\n{search_json}\nSynthesize web findings into a structured list with exact URLs."
     web_output = call_groq_api(web_system, web_prompt, api_key, temperature=0.2)
     pipeline_data["web_findings"] = web_output
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 3: Academic Researcher
     status_container.write("📚 **Step 3/5: Finding Scientific Literature** — Querying peer-reviewed academic papers, ArXiv, and journals...")
@@ -178,7 +178,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     academic_prompt = f"Question: {question}\nPlan: {plan_output[:800]}\nAcademic Data:\n{academic_json}\nSynthesize 3 key academic papers into a concise summary with URLs/DOIs."
     academic_output = call_groq_api(academic_system, academic_prompt, api_key, temperature=0.2)
     pipeline_data["academic_findings"] = academic_output
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 4: Evidence Analyst
     status_container.write("⚖️ **Step 4/5: Fact-Checking & Verification** — Auditing evidence, cross-referencing claims, and eliminating bias...")
@@ -206,7 +206,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     except Exception:
         pass
 
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 5: Multi-Part Synthesis Writer (Deep Chunked Generation)
     status_container.write("✍️ **Step 5/5: Authoring Your Complete Report** — Writing comprehensive, publication-ready dossier...")
@@ -234,7 +234,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     )
     part1_text = call_groq_api(writer_system, part1_prompt, api_key, temperature=0.2, max_tokens=6000)
     sections.append(part1_text)
-    time.sleep(1)
+    time.sleep(3)
 
     # Part 2: Deep Empirical Analysis
     status_container.write("✍️ **Writing Part 2/4:** In-Depth Analysis & Case Studies...")
@@ -250,7 +250,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     )
     part2_text = call_groq_api(writer_system, part2_prompt, api_key, temperature=0.2, max_tokens=6000)
     sections.append(part2_text)
-    time.sleep(1)
+    time.sleep(3)
 
     # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
     status_container.write("✍️ **Writing Part 3/4:** Solutions, Defenses & Practical Action Plan...")
@@ -266,7 +266,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     )
     part3_text = call_groq_api(writer_system, part3_prompt, api_key, temperature=0.2, max_tokens=6000)
     sections.append(part3_text)
-    time.sleep(1)
+    time.sleep(3)
 
     # Part 4: Contradictions, Limitations, Strategic Recommendations & References
     status_container.write("✍️ **Writing Part 4/4:** Strategic Recommendations & Bibliography...")
@@ -437,8 +437,6 @@ def main():
                 # Create Supabase session
                 created_session = create_session(question[:60])
                 session_id = created_session.get("id") if created_session else None
-                st.session_state.current_session_id = session_id
-
                 with st.status("🔍 Conducting Autonomous Multi-Agent Research...", expanded=True) as status_box:
                     try:
                         results = execute_multi_agent_pipeline(question, active_api_key, status_box, session_id=session_id)
@@ -453,14 +451,19 @@ def main():
                         if session_id:
                             save_report(session_id, report_content)
                             add_chat_message(session_id, "assistant", f"Generated research dossier for: **{question}**")
+                            st.session_state.current_session_id = session_id
 
                         status_box.update(label="✅ Research Complete & Synced to Supabase!", state="complete", expanded=False)
-                    except Exception as e:
-                        status_box.update(label="❌ Research Process Interrupted", state="error", expanded=True)
-                        st.error(f"Error during research execution: {str(e)}")
-                    finally:
                         st.session_state.is_researching = False
                         st.rerun()
+                    except Exception as e:
+                        st.session_state.is_researching = False
+                        if session_id:
+                            from crew.memory.session_manager import delete_session
+                            delete_session(session_id)
+                            st.session_state.current_session_id = None
+                        status_box.update(label="❌ Research Process Interrupted", state="error", expanded=True)
+                        st.error(f"Error during research execution: {str(e)}")
 
     # Results & Follow-Up Q&A View
     if st.session_state.research_result:
