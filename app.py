@@ -140,15 +140,20 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
 
                 time.sleep(wait_sec)
 
-            elif e.code == 413:
+            elif e.code == 413 or (e.code == 400 and any(k in err_text.lower() for k in ["context_length_exceeded", "context length", "too many tokens", "maximum context length", "max_tokens"])):
                 # Intelligently trim context from the middle to preserve prompt instructions
                 current_user_content = payload["messages"][1]["content"]
-                if len(current_user_content) > 10000:
+                if len(current_user_content) > 4000:
+                    keep_prefix = max(1500, int(len(current_user_content) * 0.25))
+                    keep_suffix = max(2000, int(len(current_user_content) * 0.35))
                     payload["messages"][1]["content"] = (
-                        current_user_content[:3500]
+                        current_user_content[:keep_prefix]
                         + "\n\n[... Context compressed to fit LLM window ...]\n\n"
-                        + current_user_content[-4500:]
+                        + current_user_content[-keep_suffix:]
                     )
+                # Downsize max_tokens to prevent context overflow
+                if payload.get("max_tokens", 0) > 2000:
+                    payload["max_tokens"] = max(1500, int(payload["max_tokens"] * 0.75))
                 time.sleep(2)
             else:
                 formatted_err = None

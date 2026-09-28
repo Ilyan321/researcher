@@ -188,11 +188,20 @@ def execute_llm_call(
 
                 time.sleep(wait_sec)
 
-            elif e.code == 413:
+            elif e.code == 413 or (e.code == 400 and any(k in err_text.lower() for k in ["context_length_exceeded", "context length", "too many tokens", "maximum context length", "max_tokens"])):
                 # If prompt is too large, trim middle of context while keeping instructions
                 user_msg = payload["messages"][1]["content"]
-                if len(user_msg) > 12000:
-                    payload["messages"][1]["content"] = user_msg[:4000] + "\n\n[...context omitted for brevity...]\n\n" + user_msg[-6000:]
+                if len(user_msg) > 4000:
+                    keep_prefix = max(1500, int(len(user_msg) * 0.25))
+                    keep_suffix = max(2000, int(len(user_msg) * 0.35))
+                    payload["messages"][1]["content"] = (
+                        user_msg[:keep_prefix]
+                        + "\n\n[...context omitted for brevity...]\n\n"
+                        + user_msg[-keep_suffix:]
+                    )
+                # Downsize max_tokens to prevent context overflow
+                if payload.get("max_tokens", 0) > 2000:
+                    payload["max_tokens"] = max(1500, int(payload["max_tokens"] * 0.75))
                 time.sleep(2)
             else:
                 formatted_err = None
