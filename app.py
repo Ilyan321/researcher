@@ -33,13 +33,30 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Clean Professional UI: Remove default Streamlit footer, embed toolbar, and watermarks
+# Clean Professional UI: Remove default Streamlit footer, embed toolbar, and watermarks while preserving sidebar toggle
 st.markdown(
     """
     <style>
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: 2.8rem !important;
+        z-index: 99 !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        color: #f8fafc !important;
+        background: rgba(30, 41, 59, 0.9) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 8px !important;
+        padding: 4px 8px !important;
+        margin-top: 6px !important;
+        margin-left: 6px !important;
+        z-index: 999999 !important;
+        cursor: pointer !important;
+    }
     #MainMenu {visibility: hidden; display: none !important;}
     footer {visibility: hidden; display: none !important;}
-    header {visibility: hidden; display: none !important;}
     div[data-testid="stEmbedToolbar"] {visibility: hidden; display: none !important;}
     div[data-testid="stDecoration"] {visibility: hidden; display: none !important;}
     div[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
@@ -119,7 +136,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     pipeline_data = {}
 
     # Step 1: Research Manager (Check past memory)
-    status_container.write("🧭 **Step 1/5: Lead Research Manager** — Checking vector memory and scoping research strategy...")
+    status_container.write("🧭 **Step 1/5: Strategizing & Planning** — Breaking down your research question and defining the roadmap...")
     prior_memory = recall_evidence(question, session_id=session_id, match_count=3)
     memory_context = ""
     if prior_memory:
@@ -144,7 +161,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 2: Web Researcher
-    status_container.write("🌐 **Step 2/5: Web Researcher** — Searching live web sources and inspecting documentation...")
+    status_container.write("🌐 **Step 2/5: Gathering Web Intelligence** — Searching trusted online sources, reports, and industry news...")
     web_query = f"{question} documentation technical report CVE"
     search_json = perform_web_search(web_query, max_results=4)
     web_system = "Role: Senior Web Research Specialist\nGoal: Synthesize timely web findings with exact source titles and URLs."
@@ -154,7 +171,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 3: Academic Researcher
-    status_container.write("📚 **Step 3/5: Academic Researcher** — Querying arXiv and OpenAlex for peer-reviewed literature...")
+    status_container.write("📚 **Step 3/5: Finding Scientific Literature** — Querying peer-reviewed academic papers, ArXiv, and journals...")
     academic_query = f"{question} empirical study benchmark"
     academic_json = perform_academic_search(academic_query, max_results=3)
     academic_system = "Role: Principal Academic Literature Specialist\nGoal: Synthesize peer-reviewed literature, abstracts, and DOIs."
@@ -164,7 +181,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 4: Evidence Analyst
-    status_container.write("⚖️ **Step 4/5: Evidence Analyst** — Auditing claims, checking contradictions, and building Defense Rubric...")
+    status_container.write("⚖️ **Step 4/5: Fact-Checking & Verification** — Auditing evidence, cross-referencing claims, and eliminating bias...")
     analyst_system = (
         "Role: Chief Evidence Analyst & Security Strategist\n"
         "Goal: Audit claims against sources, detect contradictions, calibrate certainty, and construct structured defense rubrics."
@@ -192,7 +209,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 5: Multi-Part Synthesis Writer (Deep Chunked Generation)
-    status_container.write("✍️ **Step 5/5: Synthesis Writer** — Initiating Multi-Part Exhaustive Dossier Synthesis...")
+    status_container.write("✍️ **Step 5/5: Authoring Your Complete Report** — Writing comprehensive, publication-ready dossier...")
     writer_system = (
         "Role: Senior Technical Research Writer & Systems Analyst\n"
         "Goal: Author comprehensive, highly detailed, academic-grade research sections with exhaustive empirical analysis, markdown tables, and numbered citations [1], [2]. Never summarize briefly when deep technical explanation is possible."
@@ -201,7 +218,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     sections = []
 
     # Part 1: Executive Summary, Scope & Key Findings
-    status_container.write("✍️ **Synthesizing Part 1/4:** Executive Summary, Scope & Key Findings...")
+    status_container.write("✍️ **Writing Part 1/4:** Executive Summary & Key Highlights...")
     part1_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Evidence:\n{web_output[:2000]}\n\n"
@@ -220,7 +237,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Part 2: Deep Empirical Analysis
-    status_container.write("✍️ **Synthesizing Part 2/4:** Deep Empirical Analysis & Attack Vectors...")
+    status_container.write("✍️ **Writing Part 2/4:** In-Depth Analysis & Case Studies...")
     part2_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Findings:\n{web_output[:2000]}\n\n"
@@ -236,7 +253,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
-    status_container.write("✍️ **Synthesizing Part 3/4:** 🛡️ Defense & Mitigation Matrix & Security Playbook...")
+    status_container.write("✍️ **Writing Part 3/4:** Solutions, Defenses & Practical Action Plan...")
     part3_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Defense Rubric & Audit:\n{analyst_output[:2500]}\n\n"
@@ -252,7 +269,7 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Part 4: Contradictions, Limitations, Strategic Recommendations & References
-    status_container.write("✍️ **Synthesizing Part 4/4:** Contradictions, Limitations & Complete References...")
+    status_container.write("✍️ **Writing Part 4/4:** Strategic Recommendations & Bibliography...")
     part4_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Sources:\n{web_output[:2000]}\n\n"
@@ -361,8 +378,22 @@ def main():
         st.caption("Researcher AI • Powered by CrewAI, Groq & Supabase • [GitHub](https://github.com/Ilyan321/researcher)")
 
     # Main Area Layout
-    st.title("🔬 Autonomous Multi-Agent Researcher")
-    st.caption("Autonomous Agentic RAG • Cross-Examined Citations • Multi-Session Memory")
+    st.markdown(
+        """
+        <div style="margin-bottom: 20px;">
+            <h1 style="font-size: 2.4rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; color: #f8fafc;">
+                🔬 Vesper AI
+            </h1>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; margin-bottom: 16px;">
+                <span style="background: rgba(37, 99, 235, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 9999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600;">🤖 Multi-Agent Intelligence</span>
+                <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 9999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600;">📚 Cross-Examined Citations</span>
+                <span style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 9999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600;">🧠 Long-Term Memory</span>
+                <span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600;">📄 Publication Ready</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Example Prompt Buttons (only when no active report is being viewed)
     if not st.session_state.research_result:
@@ -384,18 +415,16 @@ def main():
             "Enter your research question:",
             value=default_question,
             placeholder="e.g., What are the security risks of autonomous AI coding agents?",
-            height=100,
+            height=110,
             disabled=st.session_state.is_researching,
         )
 
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            start_btn = st.button(
-                "🚀 Launch Research",
-                type="primary",
-                use_container_width=True,
-                disabled=st.session_state.is_researching,
-            )
+        start_btn = st.button(
+            "🚀 Launch Deep Research",
+            type="primary",
+            use_container_width=True,
+            disabled=st.session_state.is_researching,
+        )
 
         if start_btn:
             if not question.strip():
