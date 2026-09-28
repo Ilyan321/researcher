@@ -23,6 +23,7 @@ from crew.memory.session_manager import (
 )
 from crew.memory.rag_memory import recall_evidence, store_evidence
 from crew.utils.export import export_to_docx, export_to_pdf, export_to_latex
+from crew.utils.editor import handle_follow_up_chat
 
 # Page configuration
 st.set_page_config(
@@ -60,25 +61,34 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "User-Agent": "ResearcherAI/1.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
     }
 
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=90) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < max_retries - 1:
-                wait_time = [6, 12, 20, 30, 45][attempt]
+                wait_time = [5, 10, 15, 25, 35][attempt]
                 time.sleep(wait_time)
             elif e.code == 413:
-                # Truncate context if payload is too large
-                payload["messages"][1]["content"] = user_prompt[:2500]
+                # Intelligently trim context from the middle to preserve prompt instructions
+                current_user_content = payload["messages"][1]["content"]
+                if len(current_user_content) > 12000:
+                    payload["messages"][1]["content"] = (
+                        current_user_content[:4000]
+                        + "\n\n[... Context compressed to fit LLM window ...]\n\n"
+                        + current_user_content[-6000:]
+                    )
                 time.sleep(2)
             else:
-                raise e
+                if attempt < max_retries - 1:
+                    time.sleep(3)
+                else:
+                    raise e
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(3)
@@ -252,37 +262,8 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
 
 
 def handle_follow_up(user_query: str, current_report: str, api_key: str, session_id: str = None) -> tuple[str, Optional[str]]:
-    """Handle ChatGPT-like conversation and intelligent dossier modifications.
-    
-    Returns:
-        tuple (reply_message, updated_report_or_none)
-    """
-    system_prompt = (
-        "Role: Senior Research Editor & Multi-Agent Lead\n"
-        "Goal: You are assisting the user in conversing with the research team, answering deep-dive questions, "
-        "or directly modifying and expanding the active research dossier.\n\n"
-        "Decision Rules:\n"
-        "1. If the user asks a QUESTION or request for clarification (e.g., 'What does section 2 mean?', 'Explain CRYSTALS-Kyber'):\n"
-        "   - Provide an insightful, citation-backed answer.\n"
-        "   - Do NOT output the full report.\n"
-        "2. If the user requests a MODIFICATION, EDIT, EXPANSION, or REWRITE of the dossier (e.g., 'Add a section on X', 'Update section 3 to focus on Y', 'Change the title', 'Rewrite conclusion'):\n"
-        "   - First, write a brief, polite explanation of the changes made (e.g., 'I have updated Section 3 to include...').\n"
-        "   - Then, include the exact delimiter '<<<UPDATED_DOSSIER>>>' on a new line, followed by the complete updated Markdown dossier.\n"
-        "Maintain academic rigor, structure, tables, and citations."
-    )
-    user_prompt = (
-        f"Current Research Dossier:\n{current_report}\n\n"
-        f"User Instruction / Inquiry:\n\"{user_query}\""
-    )
-    response = call_groq_api(system_prompt, user_prompt, api_key, temperature=0.2, max_tokens=8192)
-    
-    if "<<<UPDATED_DOSSIER>>>" in response:
-        parts = response.split("<<<UPDATED_DOSSIER>>>")
-        reply_msg = parts[0].strip()
-        updated_report = parts[1].strip()
-        return reply_msg, updated_report
-    else:
-        return response.strip(), None
+    """Handle ChatGPT-like conversation and intelligent dossier modifications with surgical patching."""
+    return handle_follow_up_chat(user_query, current_report, api_key, session_id=session_id)
 
 
 def main():
