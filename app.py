@@ -137,16 +137,20 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 4: Evidence Analyst
-    status_container.write("⚖️ **Step 4/5: Evidence Analyst** — Auditing claims, checking contradictions, and indexing verified facts...")
-    analyst_system = "Role: Chief Evidence Analyst & Fact-Checker\nGoal: Audit claims against sources, detect contradictions, and calibrate certainty."
+    status_container.write("⚖️ **Step 4/5: Evidence Analyst** — Auditing claims, checking contradictions, and building Defense Rubric...")
+    analyst_system = (
+        "Role: Chief Evidence Analyst & Security Strategist\n"
+        "Goal: Audit claims against sources, detect contradictions, calibrate certainty, and construct structured defense rubrics."
+    )
     analyst_prompt = (
         f"Question: {question}\n\n"
         f"Web Findings:\n{web_output[:1500]}\n\n"
         f"Academic Findings:\n{academic_output[:1500]}\n\n"
-        f"Perform an Evidence Audit. Output:\n"
+        f"Perform an Evidence & Defense Audit. Output:\n"
         f"1. Confidence Calibration Matrix (Strong, Moderate, Contested, Weak)\n"
         f"2. Contradiction Analysis\n"
-        f"3. Key Verified Evidence Nodes to Remember"
+        f"3. Defense & Mitigation Rubric: Threat Vectors, Provenance Attestation (SLSA, Sigstore signing), Preventative/Detective Controls\n"
+        f"4. Key Verified Evidence Nodes to Remember"
     )
     analyst_output = call_groq_api(analyst_system, analyst_prompt, api_key, temperature=0.1)
     pipeline_data["evidence_audit"] = analyst_output
@@ -161,19 +165,25 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     time.sleep(1)
 
     # Step 5: Research Writer
-    status_container.write("✍️ **Step 5/5: Synthesis Writer** — Compiling publication-grade research dossier...")
-    writer_system = "Role: Senior Technical Research Writer\nGoal: Synthesize multi-agent research into a publication-grade Markdown report with numbered citations."
+    status_container.write("✍️ **Step 5/5: Synthesis Writer** — Compiling publication-grade research dossier with Defense Matrix...")
+    writer_system = (
+        "Role: Senior Technical Research Writer & Systems Analyst\n"
+        "Goal: Synthesize multi-agent research into a publication-grade Markdown report with Defense Matrix and numbered citations."
+    )
     writer_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Evidence:\n{web_output[:1800]}\n\n"
         f"Academic Evidence:\n{academic_output[:1800]}\n\n"
-        f"Evidence Audit Matrix:\n{analyst_output[:1800]}\n\n"
+        f"Evidence Audit Matrix & Defense Rubric:\n{analyst_output[:1800]}\n\n"
         f"Produce the final Research Report in Markdown:\n"
         f"# [Title]\n"
         f"## Executive Summary\n"
         f"## Research Question & Scope\n"
         f"## Key Findings (with [1], [2] citations)\n"
         f"## Detailed Empirical Analysis\n"
+        f"## 🛡️ Defense & Mitigation Matrix\n"
+        f"| Threat / Risk Vector | Severity | Recommended Control & Provenance Attestation | Operational Trade-offs |\n"
+        f"Include a concise, step-by-step Defensive Implementation Playbook.\n\n"
         f"## Contradictions & Divergent Perspectives\n"
         f"## Methodological Limitations\n"
         f"## Strategic Recommendations & Conclusion\n"

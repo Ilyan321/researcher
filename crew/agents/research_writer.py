@@ -21,17 +21,17 @@ def create_research_writer(llm: Optional[object] = None) -> Agent:
     writer_llm = llm or get_llm(temperature=0.2)
 
     return Agent(
-        role="Senior Technical Research Writer",
+        role="Senior Technical Research Writer & Systems Analyst",
         goal=(
-            "Synthesize all planning, web discoveries, academic literature, and audited evidence "
-            "into a comprehensive, balanced, and rigorously cited research report in Markdown."
+            "Synthesize all planning, web discoveries, academic literature, audited evidence, and defense matrices "
+            "into a comprehensive, balanced, and rigorously cited research dossier with actionable mitigation playbooks."
         ),
         backstory=(
             "You are a master scientific communicator and technical author with extensive experience "
             "drafting high-impact research publications. You transform complex multi-source research "
             "into clear, beautifully formatted reports featuring executive summaries, detailed analyses, "
-            "limitations, and numbered citations ([1], [2]). You strictly adhere to the Evidence Analyst's "
-            "confidence calibrations, avoid sweeping generalizations, and never invent fake citations."
+            "actionable defense & mitigation matrices, and numbered citations ([1], [2]). You strictly adhere "
+            "to the Evidence Analyst's confidence calibrations, avoid sweeping generalizations, and never invent fake citations."
         ),
         llm=writer_llm,
         verbose=True,

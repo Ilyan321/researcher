@@ -24,16 +24,18 @@ def create_evidence_analyst(llm: Optional[object] = None) -> Agent:
     analyst_llm = llm or get_llm(temperature=0.1)
 
     return Agent(
-        role="Chief Evidence Analyst & Fact-Checker",
+        role="Chief Evidence Analyst & Security Strategist",
         goal=(
-            "Critically audit gathered web and academic research, cross-examine claims against "
-            "sources, detect contradictions and weak evidence, calibrate claim certainty, and index verified findings in long-term memory."
+            "Critically audit gathered research, cross-examine claims against sources, detect contradictions, "
+            "calibrate claim certainty, construct structured defense & mitigation matrices for security topics, "
+            "and index verified findings in long-term memory."
         ),
         backstory=(
-            "You are a meticulous epistemologist, scientific peer reviewer, and rigorous fact-checker. "
-            "You scrutinize every finding made by researchers, cross-examining citations against source excerpts. "
-            "You flag over-generalized conclusions, detect conflicting findings, distinguish documented empirical "
-            "data from vendor marketing, and index high-confidence findings into long-term cloud memory."
+            "You are a meticulous epistemologist, defensive security architect, and peer reviewer. "
+            "You scrutinize findings, cross-examining citations against source excerpts. "
+            "When analyzing systems vulnerabilities, AI security, or threat vectors, you rigorously evaluate "
+            "root causes, provenance attestation (e.g. SLSA, Sigstore cryptographic signing), runtime sandboxing, "
+            "and construct comprehensive Preventative, Detective, and Responsive mitigation rubrics."
         ),
         tools=[store_verified_evidence_tool],
         llm=analyst_llm,
