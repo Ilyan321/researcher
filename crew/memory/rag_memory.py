@@ -29,25 +29,41 @@ def get_embedding_model():
 def generate_embedding(text: str, target_dim: int = 1536) -> List[float]:
     """Generate a dense vector embedding for the given text.
     
-    If local model produces 384 dimensions, it pads to target_dim (1536) for schema compatibility.
+    Uses FastEmbed if available, or falls back to deterministic normalized word-feature hashing.
     """
-    model = get_embedding_model()
-    if model is not None:
-        try:
-            embeddings = list(model.embed([text]))
+    clean_text = text.strip()
+    if not clean_text:
+        return [0.0] * target_dim
+
+    # 1. Try FastEmbed
+    try:
+        model = get_embedding_model()
+        if model is not None:
+            embeddings = list(model.embed([clean_text]))
             if embeddings:
                 raw_vector = list(embeddings[0])
-                # Pad to target_dim if necessary
                 if len(raw_vector) < target_dim:
                     raw_vector.extend([0.0] * (target_dim - len(raw_vector)))
                 elif len(raw_vector) > target_dim:
                     raw_vector = raw_vector[:target_dim]
                 return [float(x) for x in raw_vector]
-        except Exception as e:
-            logger.error(f"Error embedding text locally: {e}")
+    except Exception as e:
+        logger.debug(f"FastEmbed note: {e}")
 
-    # Fallback zero-vector if model fails to load
-    return [0.0] * target_dim
+    # 2. High-speed deterministic fallback embedding
+    import hashlib, math
+    vector = [0.0] * target_dim
+    words = clean_text.lower().split()
+    for word in words:
+        h = int(hashlib.md5(word.encode("utf-8")).hexdigest(), 16)
+        idx = h % target_dim
+        sign = 1.0 if ((h >> 8) & 1) else -1.0
+        vector[idx] += sign
+
+    norm = math.sqrt(sum(x * x for x in vector))
+    if norm > 0:
+        vector = [x / norm for x in vector]
+    return vector
 
 
 def store_evidence(
