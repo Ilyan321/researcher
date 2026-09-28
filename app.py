@@ -79,14 +79,14 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "openai/gpt-oss-120b") -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 4, model_name: str = "openai/gpt-oss-120b") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
     import re
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
     # Priority cascade of active non-deprecated models from GroqCloud
-    raw_cascade = [clean_model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3.8-27b"]
+    raw_cascade = [clean_model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
@@ -111,7 +111,7 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
@@ -123,26 +123,17 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
                 pass
 
             if e.code == 429:
-                # 1. Look for retry-after or dynamic wait time in error message
-                wait_sec = None
-                if "Retry-After" in e.headers:
-                    try:
-                        wait_sec = float(e.headers.get("Retry-After")) + 1.0
-                    except Exception:
-                        pass
-                if not wait_sec and err_text:
-                    m = re.search(r"try again in (\d+\.?\d*)s", err_text, re.IGNORECASE)
-                    if m:
-                        wait_sec = float(m.group(1)) + 1.0
-
-                if not wait_sec:
-                    wait_sec = [3, 6, 12, 20, 30, 45, 60, 60][min(attempt, 7)]
-
-                # Switch to fast fallback model if primary model hits rate limit
-                if attempt >= 1 and len(models_cascade) > 1:
-                    next_model = models_cascade[min(attempt, len(models_cascade) - 1)]
+                # Switch immediately to fast fallback model on first rate-limit
+                if len(models_cascade) > 1:
+                    next_model = models_cascade[min(attempt + 1, len(models_cascade) - 1)]
                     payload["model"] = next_model
 
+                wait_sec = 2.0
+                if "Retry-After" in e.headers:
+                    try:
+                        wait_sec = min(float(e.headers.get("Retry-After")), 5.0)
+                    except Exception:
+                        pass
                 time.sleep(wait_sec)
 
             elif (e.code in (400, 404)) and any(k in err_text.lower() for k in ["model_not_found", "invalid_model", "model_decommissioned", "does not exist", "model not found"]):

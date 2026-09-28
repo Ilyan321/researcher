@@ -141,9 +141,15 @@ def search_openalex(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
 
 def perform_academic_search(query: str, max_results: int = 5) -> str:
     """Perform a combined academic search over arXiv and OpenAlex."""
-    clean_query = query.strip().strip('"').strip("'")
-    if not clean_query:
+    raw_query = query.strip().strip('"').strip("'")
+    if not raw_query:
         return json.dumps({"error": "Empty academic search query provided.", "papers": []})
+
+    # Prune full paragraph queries down to targeted scholarly keywords
+    clean_query = raw_query
+    if len(raw_query.split()) > 8:
+        words = [w for w in re.findall(r'\b[A-Za-z0-9\-_]{3,}\b', raw_query) if w.lower() not in {"deep", "research", "analyze", "empirical", "design", "novel", "beyond", "what", "which", "how", "create", "creating"}]
+        clean_query = " ".join(words[:6]) if words else raw_query[:50]
 
     # 1. Search arXiv
     results = search_arxiv(clean_query, max_results=max_results)

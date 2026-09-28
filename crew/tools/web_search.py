@@ -24,16 +24,22 @@ except ImportError:
 
 def perform_web_search(query: str, max_results: int = 5) -> str:
     """Execute a web search using DuckDuckGo/Wikipedia and return formatted results."""
-    clean_query = query.strip().strip('"').strip("'")
-    if not clean_query:
+    raw_query = query.strip().strip('"').strip("'")
+    if not raw_query:
         return json.dumps({"error": "Empty search query provided.", "results": []})
+
+    # Prune full paragraph queries down to high-precision search keywords
+    clean_query = raw_query
+    if len(raw_query.split()) > 8:
+        words = [w for w in re.findall(r'\b[A-Za-z0-9\-_]{3,}\b', raw_query) if w.lower() not in {"deep", "research", "analyze", "empirical", "design", "novel", "beyond", "what", "which", "how", "create", "creating"}]
+        clean_query = " ".join(words[:6]) if words else raw_query[:50]
 
     results: List[Dict[str, Any]] = []
 
-    # 1. Try DuckDuckGo Python Library if installed
+    # 1. Try DuckDuckGo Python Library if installed (with 5s timeout)
     try:
         from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
+        with DDGS(timeout=5) as ddgs:
             raw_results = list(ddgs.text(clean_query, max_results=max_results))
             for item in raw_results:
                 results.append({
