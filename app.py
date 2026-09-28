@@ -22,6 +22,7 @@ from crew.memory.session_manager import (
     get_chat_messages,
 )
 from crew.memory.rag_memory import recall_evidence, store_evidence
+from crew.utils.export import export_to_docx, export_to_pdf, export_to_latex
 
 # Page configuration
 st.set_page_config(
@@ -353,12 +354,54 @@ def main():
 
         with tab1:
             st.markdown(report_text)
-            st.download_button(
-                label="📥 Download Research Report (.md)",
-                data=report_text,
-                file_name=f"research_report_{int(time.time())}.md",
-                mime="text/markdown",
-            )
+            st.divider()
+            st.markdown("#### 📥 Export Publication Dossier")
+            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+            
+            with d_col1:
+                st.download_button(
+                    label="📄 Markdown (.md)",
+                    data=report_text,
+                    file_name=f"research_report_{int(time.time())}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+            with d_col2:
+                try:
+                    pdf_bytes = export_to_pdf(report_text, title=active_q).getvalue()
+                    st.download_button(
+                        label="📕 PDF Document (.pdf)",
+                        data=pdf_bytes,
+                        file_name=f"research_report_{int(time.time())}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.button("📕 PDF (Unavailable)", disabled=True, use_container_width=True)
+            with d_col3:
+                try:
+                    docx_bytes = export_to_docx(report_text, title=active_q).getvalue()
+                    st.download_button(
+                        label="📘 Word Document (.docx)",
+                        data=docx_bytes,
+                        file_name=f"research_report_{int(time.time())}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.button("📘 DOCX (Unavailable)", disabled=True, use_container_width=True)
+            with d_col4:
+                try:
+                    latex_text = export_to_latex(report_text, title=active_q)
+                    st.download_button(
+                        label="📜 LaTeX Article (.tex)",
+                        data=latex_text,
+                        file_name=f"research_report_{int(time.time())}.tex",
+                        mime="text/x-tex",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.button("📜 LaTeX (Unavailable)", disabled=True, use_container_width=True)
 
         with tab2:
             st.markdown("#### 💬 Follow-Up & Surgical Adjustments")

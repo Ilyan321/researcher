@@ -5,3 +5,5 @@ beautifulsoup4
 duckduckgo-search
 supabase
 fastembed
+python-docx
+reportlab
