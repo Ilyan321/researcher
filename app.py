@@ -45,8 +45,8 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_retries: int = 5) -> str:
-    """Call Groq API with automatic rate-limit backoff and token budget management."""
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 8192, max_retries: int = 5) -> str:
+    """Call Groq API with automatic rate-limit backoff, high token limit, and token budget management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
         "model": "openai/gpt-oss-120b",
@@ -55,6 +55,7 @@ def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperatur
             {"role": "user", "content": user_prompt}
         ],
         "temperature": temperature,
+        "max_tokens": max_tokens,
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
