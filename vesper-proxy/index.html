@@ -7,11 +7,11 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #0e1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    iframe { width: 100vw; height: 100vh; border: none; display: block; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background-color: #0e1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    iframe { width: 100%; height: 100%; border: none; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0; }
   </style>
 </head>
 <body>
-  <iframe src="https://researcher-by-ilyan.streamlit.app/" allow="clipboard-read; clipboard-write; microphone; camera" title="Vesper AI"></iframe>
+  <iframe src="https://researcher-by-ilyan.streamlit.app/?embed=true&embed_options=show_footer=false,show_toolbar=false" allow="clipboard-read; clipboard-write; microphone; camera; display-capture" title="Vesper AI"></iframe>
 </body>
 </html>
