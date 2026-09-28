@@ -19,7 +19,7 @@ class TestGroqErrorHandlingAndRecovery(unittest.TestCase):
 
     def test_default_model_configuration(self):
         """Test that default model is set to a valid 128k context production model."""
-        self.assertIn("llama-3.3-70b", DEFAULT_MODEL)
+        self.assertIn("gpt-oss-120b", DEFAULT_MODEL)
 
     @patch("urllib.request.urlopen")
     def test_context_length_400_auto_recovery(self, mock_urlopen):

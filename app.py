@@ -79,14 +79,14 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
-def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "llama-3.3-70b-versatile") -> str:
+def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 8, model_name: str = "openai/gpt-oss-120b") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
     import re
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     clean_model = model_name.replace("groq/", "") if model_name.startswith("groq/") else model_name
-    # Priority cascade of active non-deprecated models in case of rate-limiting or model errors
-    raw_cascade = [clean_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]
+    # Priority cascade of active non-deprecated models from GroqCloud
+    raw_cascade = [clean_model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3.8-27b"]
     models_cascade = []
     for m in raw_cascade:
         if m and m not in models_cascade:
