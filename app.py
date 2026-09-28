@@ -80,6 +80,24 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 
+def sanitize_markdown_report(text: str) -> str:
+    """Clean and prepare Markdown for flawless rendering in Streamlit."""
+    if not text:
+        return "*No report content available.*"
+    
+    # Strip LLM internal reasoning blocks if present
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    
+    # Strip wrapping markdown code fences if output was wrapped entirely in ```markdown
+    cleaned = cleaned.strip()
+    if cleaned.startswith("```markdown") and cleaned.endswith("```"):
+        cleaned = cleaned[len("```markdown"): -3].strip()
+    elif cleaned.startswith("```") and cleaned.endswith("```"):
+        cleaned = cleaned[3:-3].strip()
+        
+    return cleaned
+
+
 def call_groq_api(system_prompt: str, user_prompt: str, api_key: str, temperature: float = 0.2, max_tokens: int = 4096, max_retries: int = 4, model_name: str = "llama-3.3-70b-versatile") -> str:
     """Call Groq API with automatic multi-model fallback, dynamic rate-limit backoff, and token management."""
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -368,6 +386,30 @@ def main():
     detected_key = get_groq_api_key()
     active_api_key = detected_key
 
+    # Auto-restore active session on refresh from query params or most recent session
+    if st.session_state.research_result is None and not st.session_state.is_researching:
+        query_session_id = st.query_params.get("session_id")
+        target_s_id = query_session_id
+        if not target_s_id:
+            all_s = get_all_sessions()
+            for s in all_s:
+                s_rep = get_report(s["id"])
+                if s_rep and s_rep.get("markdown_content"):
+                    target_s_id = s["id"]
+                    break
+
+        if target_s_id:
+            s_obj = get_session(target_s_id)
+            rep_obj = get_report(target_s_id)
+            if rep_obj and rep_obj.get("markdown_content"):
+                st.session_state.current_session_id = target_s_id
+                st.session_state.research_result = {
+                    "question": (s_obj or {}).get("title", "Research Dossier"),
+                    "report": rep_obj.get("markdown_content", "")
+                }
+                st.session_state.chat_history = get_chat_messages(target_s_id)
+                st.query_params["session_id"] = target_s_id
+
     # Sidebar: Multi-Session Management & Workspace
     with st.sidebar:
         st.markdown("## 🔬 Vesper AI")
@@ -379,11 +421,12 @@ def main():
             st.session_state.pipeline_details = {}
             st.session_state.chat_history = []
             st.session_state.example_q = ""
+            st.query_params.clear()
             st.rerun()
 
         st.divider()
 
-        # Sessions list from Supabase
+        # Sessions list
         st.markdown("### 🗂️ Past Investigations")
         saved_sessions = get_all_sessions()
 
@@ -400,6 +443,7 @@ def main():
                 with c_btn:
                     if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
                         st.session_state.current_session_id = s_id
+                        st.query_params["session_id"] = s_id
                         loaded_report = get_report(s_id)
                         if loaded_report and loaded_report.get("markdown_content"):
                             st.session_state.research_result = {
@@ -519,13 +563,14 @@ def main():
                             "report": report_content,
                         }
 
-                        # Save to Supabase
+                        # Save to persistence
                         if session_id:
                             save_report(session_id, report_content)
                             add_chat_message(session_id, "assistant", f"Generated research dossier for: **{question}**")
                             st.session_state.current_session_id = session_id
+                            st.query_params["session_id"] = session_id
 
-                        status_box.update(label="✅ Research Complete & Synced to Supabase!", state="complete", expanded=False)
+                        status_box.update(label="✅ Research Complete & Synced!", state="complete", expanded=False)
                         st.session_state.is_researching = False
                         st.rerun()
                     except Exception as e:
@@ -548,12 +593,23 @@ def main():
         report_text = st.session_state.research_result["report"]
         active_q = st.session_state.research_result.get("question", "Research Dossier")
 
-        st.markdown(f"### 📋 Active Dossier: *{active_q}*")
+        col_head_title, col_head_btn = st.columns([4, 1])
+        with col_head_title:
+            st.markdown(f"### 📋 Active Dossier: *{active_q}*")
+        with col_head_btn:
+            if st.button("➕ New Topic", key="btn_top_new_topic", use_container_width=True):
+                st.session_state.current_session_id = None
+                st.session_state.research_result = None
+                st.session_state.chat_history = []
+                st.session_state.example_q = ""
+                st.query_params.clear()
+                st.rerun()
 
         tab1, tab2, tab3 = st.tabs(["📄 Structured Dossier", "💬 Interactive Follow-Up & Edits", "🔍 Agent Telemetry"])
 
         with tab1:
-            st.markdown(report_text)
+            clean_rendered_text = sanitize_markdown_report(report_text)
+            st.markdown(clean_rendered_text, unsafe_allow_html=True)
             st.divider()
             st.markdown("#### 📥 Export Publication Dossier")
             d_col1, d_col2, d_col3, d_col4 = st.columns(4)
