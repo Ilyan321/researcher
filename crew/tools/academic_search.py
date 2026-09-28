@@ -5,6 +5,7 @@ papers, technical preprints, author listings, abstracts, and DOIs.
 """
 
 import json
+import re
 import urllib.request
 import urllib.parse
 import urllib.error

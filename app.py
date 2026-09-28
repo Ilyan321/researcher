@@ -4,6 +4,7 @@ A research-focused multi-agent system powered by CrewAI, Groq (openai/gpt-oss-12
 """
 
 import os
+import re
 import json
 import time
 import urllib.request
