@@ -1,11 +1,12 @@
 """Researcher AI — Master Crew Orchestration.
 
-Assembles and executes the 5-agent research pipeline:
+Assembles and executes the 6-agent research pipeline:
 1. Research Manager -> Creates research plan & focus areas
 2. Web Researcher -> Investigates live web & inspects key links
 3. Academic Researcher -> Queries scholarly databases (arXiv, OpenAlex)
 4. Evidence Analyst -> Fact-checks, audits claims & calibrates confidence
-5. Research Writer -> Compiles final structured Markdown report with citations
+5. Research Writer -> Compiles structured Markdown report draft with citations
+6. Anti-AI Humanizer -> De-sterilizes tone, disrupts predictable token cadences, and achieves 0% AI detection
 """
 
 from typing import Optional, Dict, Any, List
@@ -15,12 +16,14 @@ from crew.agents.web_researcher import create_web_researcher
 from crew.agents.academic_researcher import create_academic_researcher
 from crew.agents.evidence_analyst import create_evidence_analyst
 from crew.agents.research_writer import create_research_writer
+from crew.agents.humanizer import create_humanizer_agent
 
 from crew.tasks.planning_task import create_planning_task
 from crew.tasks.web_research_task import create_web_research_task
 from crew.tasks.academic_task import create_academic_task
 from crew.tasks.evidence_task import create_evidence_task
 from crew.tasks.writing_task import create_writing_task
+from crew.tasks.humanization_task import create_humanization_task
 
 
 class ResearcherCrew:
@@ -34,16 +37,18 @@ class ResearcherCrew:
         self.model = model or DEFAULT_MODEL
         self.verbose = verbose
         self.llm = get_llm(model=self.model)
+        self.humanizer_llm = get_llm(model=self.model, temperature=0.65)
 
-        # Initialize all 5 specialized agents
+        # Initialize all 6 specialized agents
         self.manager = create_manager(llm=self.llm)
         self.web_researcher = create_web_researcher(llm=self.llm)
         self.academic_researcher = create_academic_researcher(llm=self.llm)
         self.evidence_analyst = create_evidence_analyst(llm=self.llm)
         self.research_writer = create_research_writer(llm=self.llm)
+        self.humanizer = create_humanizer_agent(llm=self.humanizer_llm)
 
     def build_tasks(self, research_question: str) -> List[Any]:
-        """Construct all 5 research tasks with inter-task context dependencies."""
+        """Construct all 6 research tasks with inter-task context dependencies."""
         # 1. Planning Task (Manager)
         task_planning = create_planning_task(
             agent=self.manager,
@@ -78,7 +83,14 @@ class ResearcherCrew:
             context_tasks=[task_planning, task_web, task_academic, task_evidence],
         )
 
-        return [task_planning, task_web, task_academic, task_evidence, task_writing]
+        # 6. Anti-AI Humanization Task (Humanizer) - receives writer output
+        task_humanizing = create_humanization_task(
+            agent=self.humanizer,
+            research_question=research_question,
+            context_tasks=[task_writing],
+        )
+
+        return [task_planning, task_web, task_academic, task_evidence, task_writing, task_humanizing]
 
     def kickoff(self, research_question: str) -> str:
         """Execute the entire multi-agent research workflow."""
@@ -96,6 +108,7 @@ class ResearcherCrew:
             self.academic_researcher,
             self.evidence_analyst,
             self.research_writer,
+            self.humanizer,
         ]
 
         crew = Crew(
