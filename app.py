@@ -323,12 +323,12 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
 
     def generate_section_safely(prompt: str, fallback_heading: str) -> str:
         try:
-            return call_groq_api(writer_system, prompt, api_key, temperature=0.25, max_tokens=3500, max_retries=6)
+            return call_groq_api(writer_system, prompt, api_key, temperature=0.7, max_tokens=3500, max_retries=6)
         except Exception as err:
             logger.warning(f"Section generation fallback triggered: {err}")
             try:
                 compact_prompt = prompt[:2500]
-                return call_groq_api(writer_system, compact_prompt, api_key, temperature=0.25, max_tokens=2000, max_retries=3, model_name="llama-3.1-8b-instant")
+                return call_groq_api(writer_system, compact_prompt, api_key, temperature=0.65, max_tokens=2000, max_retries=3, model_name="llama-3.1-8b-instant")
             except Exception:
                 return f"## {fallback_heading}\n\n*Empirical analysis synthesized from verified evidence nodes and calibrated benchmarks.*"
 
@@ -457,11 +457,13 @@ def main():
 
         if st.button("➕ New Research", type="primary", use_container_width=True):
             st.session_state.is_new_session_intent = True
+            st.session_state.is_researching = False
             st.session_state.current_session_id = None
             st.session_state.research_result = None
             st.session_state.pipeline_details = {}
             st.session_state.chat_history = []
             st.session_state.example_q = ""
+            st.session_state.session_notice = None
             st.query_params.clear()
             st.rerun()
 
@@ -484,6 +486,7 @@ def main():
                 with c_btn:
                     if st.button(btn_label, key=f"session_btn_{s_id}", use_container_width=True):
                         st.session_state.is_new_session_intent = False
+                        st.session_state.is_researching = False
                         st.session_state.current_session_id = s_id
                         st.query_params["session_id"] = s_id
                         loaded_report = get_report(s_id)
@@ -555,12 +558,15 @@ def main():
             col_e1, col_e2, col_e3 = st.columns(3)
             with col_e1:
                 if st.button("AI Coding Agent Security", use_container_width=True):
+                    st.session_state.is_researching = False
                     st.session_state.example_q = "What are the security risks of autonomous AI coding agents?"
             with col_e2:
                 if st.button("AI Memory Architectures", use_container_width=True):
+                    st.session_state.is_researching = False
                     st.session_state.example_q = "Compare the current approaches to AI agent memory systems."
             with col_e3:
                 if st.button("Developer Productivity Impact", use_container_width=True):
+                    st.session_state.is_researching = False
                     st.session_state.example_q = "What are the benefits and empirical limitations of AI coding assistants?"
 
         if "session_notice" in st.session_state and st.session_state.session_notice:
@@ -593,11 +599,12 @@ def main():
             else:
                 st.session_state.is_researching = True
 
-                # Create Supabase session
-                created_session = create_session(question[:60])
-                session_id = created_session.get("id") if created_session else None
-                with st.status("🔍 Conducting Autonomous Multi-Agent Research...", expanded=True) as status_box:
-                    try:
+                session_id = None
+                try:
+                    # Create Supabase session
+                    created_session = create_session(question[:60])
+                    session_id = created_session.get("id") if created_session else None
+                    with st.status("🔍 Conducting Autonomous Multi-Agent Research...", expanded=True) as status_box:
                         results = execute_multi_agent_pipeline(question, active_api_key, status_box, session_id=session_id)
                         st.session_state.pipeline_details = results
                         report_content = results.get("final_report", "No report generated.")
@@ -616,20 +623,21 @@ def main():
                         status_box.update(label="✅ Research Complete & Synced!", state="complete", expanded=False)
                         st.session_state.is_researching = False
                         st.rerun()
-                    except Exception as e:
-                        st.session_state.is_researching = False
-                        if session_id:
-                            from crew.memory.session_manager import delete_session
-                            delete_session(session_id)
-                            st.session_state.current_session_id = None
-                        status_box.update(label="❌ Research Process Interrupted", state="error", expanded=True)
-                        st.error(f"**Research Pipeline Notice:** {str(e)}")
-                        st.info(
-                            "💡 **Troubleshooting Tips:**\n"
-                            "- If you received a rate limit warning, wait a moment and retry — Groq rate limits reset within seconds.\n"
-                            "- For very long reports, the pipeline automatically compresses context and downsizes completion tokens.\n"
-                            "- Verify that your Groq API key is valid and active."
-                        )
+                except Exception as e:
+                    st.session_state.is_researching = False
+                    if session_id:
+                        from crew.memory.session_manager import delete_session
+                        delete_session(session_id)
+                        st.session_state.current_session_id = None
+                    st.error(f"**Research Pipeline Notice:** {str(e)}")
+                    st.info(
+                        "💡 **Troubleshooting Tips:**\n"
+                        "- If you received a rate limit warning, wait a moment and retry — Groq rate limits reset within seconds.\n"
+                        "- For very long reports, the pipeline automatically compresses context and downsizes completion tokens.\n"
+                        "- Verify that your Groq API key is valid and active."
+                    )
+                finally:
+                    st.session_state.is_researching = False
 
     # Results & Follow-Up Q&A View
     if st.session_state.research_result:
@@ -642,6 +650,7 @@ def main():
         with col_head_btn:
             if st.button("➕ New Topic", key="btn_top_new_topic", use_container_width=True):
                 st.session_state.is_new_session_intent = True
+                st.session_state.is_researching = False
                 st.session_state.current_session_id = None
                 st.session_state.research_result = None
                 st.session_state.pipeline_details = {}
