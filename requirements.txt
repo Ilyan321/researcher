@@ -7,3 +7,5 @@ supabase
 fastembed
 python-docx
 reportlab
+tenacity
+nltk
