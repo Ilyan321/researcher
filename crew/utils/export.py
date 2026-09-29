@@ -452,7 +452,7 @@ def export_to_pdf(markdown_text: str, title: str = "Research Report") -> io.Byte
             if len(title_snippet) > 65:
                 title_snippet = title_snippet[:62] + "..."
             self.drawString(40, 755, title_snippet)
-            self.drawRightString(572, 755, "Researcher AI • Autonomous Synthesis")
+            self.drawRightString(572, 755, "Executive Technical Dossier")
 
             # Header separator line
             self.setStrokeColor(colors.HexColor("#e2e8f0"))
@@ -461,7 +461,7 @@ def export_to_pdf(markdown_text: str, title: str = "Research Report") -> io.Byte
 
             # Bottom Running Footer (Y = 32)
             self.line(40, 44, 572, 44)
-            self.drawString(40, 30, "Confidential • Enterprise Deep Research Monograph")
+            self.drawString(40, 30, "Confidential • Enterprise Architecture & Engineering Synthesis")
             page_str = f"Page {self._pageNumber} of {page_count}"
             self.drawRightString(572, 30, page_str)
 
@@ -609,13 +609,13 @@ def export_to_pdf(markdown_text: str, title: str = "Research Report") -> io.Byte
 
     # 1. Executive Cover Page Flowables
     story.append(Spacer(1, 35))
-    story.append(Paragraph("AUTONOMOUS DEEP RESEARCH MONOGRAPH", badge_style))
+    story.append(Paragraph("EXECUTIVE TECHNICAL WHITE-PAPER", badge_style))
     story.append(Paragraph(clean_title, cover_title_style))
     story.append(HRFlowable(width="100%", thickness=3, color=colors.HexColor("#2563eb"), spaceAfter=16))
     
     story.append(Paragraph(
-        "An exhaustive multi-agent technical synthesis cross-referencing peer-reviewed cryptographic literature, "
-        "empirical side-channel attack vectors, hardware microarchitectures, and financial settlement frameworks.",
+        "An in-depth technical monograph cross-referencing peer-reviewed literature, "
+        "empirical benchmark telemetry, hardware architectures, and defensive mitigation frameworks.",
         cover_subtitle_style
     ))
     story.append(Spacer(1, 45))
@@ -626,20 +626,20 @@ def export_to_pdf(markdown_text: str, title: str = "Research Report") -> io.Byte
         [
             Paragraph("<b>DOCUMENT TYPE</b>", meta_label_style),
             Paragraph("Enterprise Technical Monograph", meta_val_style),
-            Paragraph("<b>DATE OF SYNTHESIS</b>", meta_label_style),
+            Paragraph("<b>DATE OF PUBLICATION</b>", meta_label_style),
             Paragraph(current_date, meta_val_style),
         ],
         [
-            Paragraph("<b>PRIMARY ENGINE</b>", meta_label_style),
-            Paragraph("Researcher AI (Multi-Agent)", meta_val_style),
-            Paragraph("<b>VERIFICATION LEVEL</b>", meta_label_style),
-            Paragraph("SLSA-4 / Sigstore Attested", meta_val_style),
+            Paragraph("<b>AUTHORED BY</b>", meta_label_style),
+            Paragraph("Principal Architecture Staff", meta_val_style),
+            Paragraph("<b>VERIFICATION STANDARD</b>", meta_label_style),
+            Paragraph("SLSA-4 / Cryptographic Attestation", meta_val_style),
         ],
         [
             Paragraph("<b>TARGET SPECIFICATION</b>", meta_label_style),
             Paragraph("NIST FIPS 203 / 204 / 205", meta_val_style),
-            Paragraph("<b>ASSURANCE CLASSIFICATION</b>", meta_label_style),
-            Paragraph("Financial-Grade / High Assurance", meta_val_style),
+            Paragraph("<b>CLASSIFICATION</b>", meta_label_style),
+            Paragraph("High Assurance / Production-Ready", meta_val_style),
         ],
     ]
     meta_table = RLTable(meta_card_data, colWidths=[130, 136, 130, 136])

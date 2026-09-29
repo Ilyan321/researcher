@@ -12,14 +12,20 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 # AI Signature Clichés and N-grams banned from final publication dossiers
 BANNED_AI_PATTERNS = [
+    (r"\brapidly\s+evolving(?:\s+technological)?\s+landscape\b", "production environment"),
+    (r"\btechnological\s+landscape\b", "systems ecosystem"),
+    (r"\blandscape\b", "domain"),
     (r"\bdelving\s+into\b", "examining"),
     (r"\bdelved\s+into\b", "examined"),
     (r"\bdelves\s+into\b", "examines"),
     (r"\bdelve\s+into\b", "examine"),
+    (r"\bdelve\b", "look"),
     (r"\ba\s+testament\s+to\b", "evidence of"),
+    (r"\btestament\b", "evidence"),
     (r"\bpivotal\s+role\b", "key role"),
     (r"\bpivotal\b", "key"),
     (r"\bcrucial\s+to\s+note(?:\s+that)?\b", "notably"),
+    (r"\bcrucial\b", "critical"),
     (r"\bit\s+is\s+important\s+to\s+note(?:\s+that)?\b", ""),
     (r"\bit\s+is\s+worth\s+noting(?:\s+that)?\b", ""),
     (r"\bit\s+should\s+be\s+noted(?:\s+that)?\b", ""),
@@ -36,8 +42,10 @@ BANNED_AI_PATTERNS = [
     (r"\bseamless\b", "smooth"),
     (r"\bintricate\s+dance\b", "interaction"),
     (r"\bgame-changer\b", "major shift"),
+    (r"\bparadigm\s+shift\b", "architectural transition"),
     (r"\blikewise\b", "similarly"),
     (r"\bholistic\s+approach\b", "integrated approach"),
+    (r"\bholistic\b", "unified"),
     (r"\bunderscoring\s+the\s+importance\s+of\b", "highlighting"),
     (r"\bunderscoring\b", "highlighting"),
     (r"\bunderscores\b", "highlights"),
@@ -45,27 +53,30 @@ BANNED_AI_PATTERNS = [
     (r"\bfosters\s+an\s+environment\s+for\b", "enables"),
     (r"\bfosters\b", "supports"),
     (r"\brealm\s+of\b", "field of"),
+    (r"\brealm\b", "field"),
+    (r"\bTakeaway\s*:\s*", ""),
+    (r"\bTakeaways\s*:\s*", ""),
+    (r"\bKey\s+Takeaway\s*:\s*", ""),
 ]
 
 
 def clean_ai_cliches(text: str) -> str:
-    """Strip or replace signature LLM n-grams and formulaic filler."""
+    """Strip or replace signature LLM n-grams, formulaic filler, and repetitive AI wrappers."""
     cleaned = text
     for pattern, replacement in BANNED_AI_PATTERNS:
         cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
-    # Clean up any resulting double spaces
+    # Clean up empty list headers, leftover bullet cards, or double spaces
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned
 
 
 def split_into_sentences(text: str) -> List[str]:
     """Split text into sentences using regex boundary detection."""
-    # Strip markdown headers and tables for sentence metrics
     lines = [line.strip() for line in text.split("\n") if line.strip() and not line.startswith("#") and not line.startswith("|")]
     clean_text = " ".join(lines)
     if not clean_text:
         return []
-    # Sentence boundary split
     sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"])", clean_text)
     return [s.strip() for s in sentences if len(s.strip().split()) > 2]
 
@@ -113,25 +124,24 @@ def chunk_markdown(content: str, max_chunk_chars: int = 3500) -> List[Dict[str, 
     return chunks if chunks else [{"text": content}]
 
 
-HUMANIZER_SYSTEM_PROMPT = """You are a World-Class Principal Engineer, Chief Editor, and Technical Stylist.
-Your sole mission is to rewrite the provided research section so it achieves ABSOLUTE 0% AI DETECTION across Turnitin, GPTZero, CopyLeaks, and Originality.ai.
+HUMANIZER_SYSTEM_PROMPT = """You are a Veteran Principal Systems Architect, Chief Security Researcher, and Technical Stylist.
+Your sole mission is to rewrite the provided research draft so it is 100% INDISTINGUISHABLE FROM A TOP-TIER HUMAN RESEARCH PAPER and achieves 0% AI DETECTION across Turnitin, GPTZero, CopyLeaks, and Originality.ai.
 
-STRICT ANTI-AI RULES:
-1. CADENCE & BURSTINESS (CRITICAL):
-   - Radically vary sentence lengths. Alternate between short, punchy 3–7 word sentences and intricate 30–45 word analytical clauses.
-   - Break all robotic tripartite symmetry ("X, Y, and Z").
-   - Use natural parentheticals, em-dashes (—), and semicolons.
+CRITICAL ANTI-AI DIRECTIVES:
+1. NATURAL HUMAN PROSE & STRUCTURE (CRITICAL):
+   - DO NOT use repetitive, formulaic bullet cards (e.g. '• Point 1 • Success rate: ... • Citation: [X]'). Instead, weave findings into deep, authoritative paragraphs with natural inline citations [1], [2].
+   - DO NOT include robotic 'Takeaway:' or 'Key Takeaway:' summary labels.
+   - Alternate between dense, multi-clause analytical explanations (35–45 words) and sharp, definitive observations (4–8 words).
 
-2. VOCABULARY & TONE:
-   - Write with the authoritative, pragmatic voice of an expert who builds real production systems.
-   - BANNED WORDS: NEVER use 'delve', 'tapestry', 'testament', 'beacon', 'crucial', 'pivotal', 'game-changer', 'multifaceted', 'furthermore', 'moreover', 'in conclusion', 'seamless', 'realm', 'underscores'.
-   - Use pragmatic transitions: "In production, however...", "The primary failure mode originates in...", "Under benchmark load...", "Practically speaking...".
+2. VOCABULARY PURGE:
+   - NEVER use AI markers: 'delve', 'tapestry', 'testament', 'beacon', 'crucial', 'pivotal', 'game-changer', 'multifaceted', 'furthermore', 'moreover', 'in conclusion', 'seamless', 'realm', 'underscores', 'landscape', 'paradigm shift', 'holistic'.
+   - Use pragmatic, first-principles transitions: "In real-world testing, however...", "The core failure mode stems from...", "Under benchmark stress...", "Practically speaking...".
 
-3. FACT & CITATION PRESERVATION:
-   - Preserve all technical facts, metrics, numbers, CVEs, benchmark stats, tables, and bracketed citation numbers ([1], [2]).
-   - Retain standard Markdown headers (##, ###) and table formatting.
+3. FACTUAL & CITATION ACCURACY:
+   - Retain every single technical fact, memory offset, CVE number, benchmark metric, and bracketed citation ([1], [2], etc.).
+   - Preserve valid Markdown tables and section headers (##, ###).
 
-Output ONLY the rewritten markdown text. Do not include meta-commentary, introductory notes, or disclaimers."""
+Output ONLY the finalized, natural markdown report text."""
 
 
 @retry(

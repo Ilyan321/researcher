@@ -311,29 +311,29 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
     status_container.write("✍️ **Step 5/6: Authoring Your Complete Report** — Writing comprehensive, publication-ready dossier...")
     writer_system = (
         "Role: Senior Principal Systems Architect & Technical Research Author\n"
-        "Goal: Author authoritative, highly detailed, publication-grade research monographs with exhaustive empirical analysis, markdown comparison tables, and numbered citations [1], [2].\n"
+        "Goal: Author authoritative, publication-grade research monographs with flowing human prose, deep technical analysis, markdown comparison tables, and numbered citations [1], [2].\n"
         "Humanized Writing Directives:\n"
-        "1. Tone: Write with the sharp, unambiguous voice of a veteran principal engineer and research scientist. Avoid generic textbook summaries.\n"
-        "2. Dynamic Cadence (High Burstiness): Radically vary sentence length. Pair punchy, concise assertions with detailed multi-clause technical proofs.\n"
-        "3. Anti-AI Cliché Filter: Strictly avoid AI filler phrases (e.g., 'delve', 'tapestry', 'testament', 'crucial', 'pivotal', 'game-changer', 'furthermore', 'moreover', 'in conclusion', 'beacon', 'multifaceted').\n"
-        "4. Quantitative Depth: Prioritize concrete protocol mechanics, memory layout offsets, CPU cycle counts, and empirical failure modes."
+        "1. Natural Human Prose: Write flowing, authoritative paragraphs with inline citations ([1], [2]). NEVER use repetitive bullet cards (e.g., '• Point 1 • Success rate: ... • Citation: [X]') and NEVER output 'Takeaway:' summary prefixes.\n"
+        "2. Dynamic Cadence: Radically vary sentence length. Pair punchy, concise observations (4–8 words) with intricate, multi-clause technical explanations (35–45 words).\n"
+        "3. Anti-AI Vocabulary: Strictly avoid AI filler words (e.g., 'delve', 'tapestry', 'testament', 'crucial', 'pivotal', 'game-changer', 'furthermore', 'moreover', 'in conclusion', 'beacon', 'multifaceted', 'landscape', 'paradigm shift', 'holistic').\n"
+        "4. Quantitative Depth: Prioritize concrete protocol mechanics, memory layout offsets, CPU cycle counts, CVE data, and empirical failure modes."
     )
     
     sections = []
 
     def generate_section_safely(prompt: str, fallback_heading: str) -> str:
         try:
-            return call_groq_api(writer_system, prompt, api_key, temperature=0.2, max_tokens=2048, max_retries=6)
+            return call_groq_api(writer_system, prompt, api_key, temperature=0.25, max_tokens=3500, max_retries=6)
         except Exception as err:
             logger.warning(f"Section generation fallback triggered: {err}")
             try:
                 compact_prompt = prompt[:2500]
-                return call_groq_api(writer_system, compact_prompt, api_key, temperature=0.2, max_tokens=1500, max_retries=3, model_name="llama-3.1-8b-instant")
+                return call_groq_api(writer_system, compact_prompt, api_key, temperature=0.25, max_tokens=2000, max_retries=3, model_name="llama-3.1-8b-instant")
             except Exception:
                 return f"## {fallback_heading}\n\n*Empirical analysis synthesized from verified evidence nodes and calibrated benchmarks.*"
 
-    # Part 1: Executive Summary, Scope & Key Findings
-    status_container.write("✍️ **Writing Part 1/4:** Executive Summary & Key Highlights...")
+    # Part 1: Executive Summary & Technical Scope
+    status_container.write("✍️ **Writing Part 1/5:** Executive Summary & Scope...")
     part1_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Evidence:\n{web_output[:1800]}\n\n"
@@ -341,18 +341,16 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"Write Part 1 of the Research Dossier in Markdown:\n"
         f"# {question}\n\n"
         f"## Executive Summary\n"
-        f"A deep, comprehensive, high-impact synthesis of the core findings and strategic takeaway.\n\n"
+        f"A deep, comprehensive, high-impact synthesis in flowing paragraphs with inline citations [1], [2]. Avoid generic summaries.\n\n"
         f"## Research Question & Scope\n"
-        f"Define the problem boundaries, technical dimensions, and target environments.\n\n"
-        f"## Key Findings\n"
-        f"Numbered, high-priority findings with inline bracketed citations (e.g. [1], [2]) and a summary matrix table."
+        f"Define the technical boundaries, target operating environments, and threat dimensions."
     )
-    part1_text = generate_section_safely(part1_prompt, "Executive Summary & Key Findings")
+    part1_text = generate_section_safely(part1_prompt, "Executive Summary & Technical Scope")
     sections.append(part1_text)
-    time.sleep(1.0)
+    time.sleep(1.2)
 
-    # Part 2: Deep Empirical Analysis
-    status_container.write("✍️ **Writing Part 2/4:** In-Depth Analysis & Case Studies...")
+    # Part 2: Deep Empirical Analysis & Vulnerability Models
+    status_container.write("✍️ **Writing Part 2/5:** Empirical Breakdown & Case Studies...")
     part2_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Findings:\n{web_output[:1800]}\n\n"
@@ -360,15 +358,15 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"Evidence Audit:\n{analyst_output[:1800]}\n\n"
         f"Write Part 2 of the Research Dossier in Markdown:\n"
         f"## Detailed Empirical Analysis\n"
-        f"Provide exhaustive technical breakdowns structured by sub-topics, including empirical benchmark statistics, vulnerability models, and case studies.\n"
+        f"Provide deep technical breakdowns structured by sub-topics, including concrete memory offsets, CPU cycle telemetry, and empirical case studies.\n"
         f"Include detailed markdown comparison tables where appropriate."
     )
     part2_text = generate_section_safely(part2_prompt, "Detailed Empirical Analysis")
     sections.append(part2_text)
-    time.sleep(1.0)
+    time.sleep(1.2)
 
     # Part 3: 🛡️ Defense & Mitigation Matrix & Playbook
-    status_container.write("✍️ **Writing Part 3/4:** Solutions, Defenses & Practical Action Plan...")
+    status_container.write("✍️ **Writing Part 3/5:** Solutions, Defenses & Practical Action Plan...")
     part3_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Defense Rubric & Audit:\n{analyst_output[:2200]}\n\n"
@@ -377,30 +375,42 @@ def execute_multi_agent_pipeline(question: str, api_key: str, status_container, 
         f"Create an exhaustive, multi-column Markdown table:\n"
         f"| Threat / Risk Vector | Severity | Recommended Control & Provenance Attestation (SLSA, Sigstore) | Detective Monitoring | Operational Trade-offs |\n\n"
         f"### Actionable Defensive Implementation Playbook\n"
-        f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production."
+        f"Provide a concrete step-by-step engineering playbook for deploying these mitigations in production environments."
     )
     part3_text = generate_section_safely(part3_prompt, "Defense & Mitigation Matrix")
     sections.append(part3_text)
-    time.sleep(1.0)
+    time.sleep(1.2)
 
-    # Part 4: Contradictions, Limitations, Strategic Recommendations & References
-    status_container.write("✍️ **Writing Part 4/4:** Strategic Recommendations & Bibliography...")
+    # Part 4: Contradictions & Methodological Limitations
+    status_container.write("✍️ **Writing Part 4/5:** Vendor Discrepancies & Research Limitations...")
     part4_prompt = (
         f"Research Question: \"{question}\"\n\n"
         f"Web Sources:\n{web_output[:1800]}\n\n"
         f"Academic Literature:\n{academic_output[:1800]}\n\n"
         f"Write Part 4 of the Research Dossier in Markdown:\n"
         f"## Contradictions & Divergent Perspectives\n"
-        f"Compare conflicting findings between vendor documentation and independent academic benchmarks.\n\n"
+        f"Compare conflicting findings between vendor documentation and independent academic benchmarks. Include a comparative breakdown table.\n\n"
         f"## Methodological Limitations\n"
-        f"Document open research challenges, dataset constraints, and measurement boundaries.\n\n"
-        f"## Strategic Recommendations & Conclusion\n"
-        f"Strategic synthesis and future-proof roadmap.\n\n"
-        f"## References\n"
-        f"Full numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all sources."
+        f"Document open research challenges, dataset constraints, and measurement boundaries in a structured analysis."
     )
-    part4_text = generate_section_safely(part4_prompt, "Strategic Recommendations & References")
+    part4_text = generate_section_safely(part4_prompt, "Contradictions & Methodological Limitations")
     sections.append(part4_text)
+    time.sleep(1.2)
+
+    # Part 5: Strategic Recommendations & Full Bibliography
+    status_container.write("✍️ **Writing Part 5/5:** Strategic Roadmap & Complete References...")
+    part5_prompt = (
+        f"Research Question: \"{question}\"\n\n"
+        f"Web Sources:\n{web_output[:1800]}\n\n"
+        f"Academic Literature:\n{academic_output[:1800]}\n\n"
+        f"Write Part 5 of the Research Dossier in Markdown:\n"
+        f"## Strategic Recommendations & Conclusion\n"
+        f"High-impact, actionable roadmap for engineering leaders and security architects.\n\n"
+        f"## References\n"
+        f"Exhaustive numbered bibliographic list ([1], [2], etc.) citing Title, Authors/Organization, Year, and exact URL/DOI for all referenced sources."
+    )
+    part5_text = generate_section_safely(part5_prompt, "Strategic Recommendations & References")
+    sections.append(part5_text)
 
     # Compile raw dossier
     raw_report = "\n\n---\n\n".join(sections)
