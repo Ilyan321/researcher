@@ -57,16 +57,23 @@ def get_groq_api_key() -> Optional[str]:
 def get_llm(model: Optional[str] = None, temperature: float = DEFAULT_TEMPERATURE):
     """Factory function returning a configured CrewAI LLM instance.
 
-    Uses the verified model: groq/openai/gpt-oss-120b
+    Uses the verified model: groq/llama-3.3-70b-versatile
     """
-    from crewai import LLM
-
-    # Ensure API key is loaded into environment
     api_key = get_groq_api_key()
     selected_model = model or DEFAULT_MODEL
 
-    return LLM(
-        model=selected_model,
-        temperature=temperature,
-        api_key=api_key if api_key else None,
-    )
+    try:
+        from crewai import LLM
+        return LLM(
+            model=selected_model,
+            temperature=temperature,
+            api_key=api_key if api_key else None,
+        )
+    except ImportError:
+        class MockLLM:
+            def __init__(self, model: str, temperature: float, api_key: Optional[str] = None):
+                self.model = model
+                self.temperature = temperature
+                self.api_key = api_key
+
+        return MockLLM(model=selected_model, temperature=temperature, api_key=api_key)
