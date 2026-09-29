@@ -69,11 +69,6 @@ def get_llm(model: Optional[str] = None, temperature: float = DEFAULT_TEMPERATUR
             temperature=temperature,
             api_key=api_key if api_key else None,
         )
-    except ImportError:
-        class MockLLM:
-            def __init__(self, model: str, temperature: float, api_key: Optional[str] = None):
-                self.model = model
-                self.temperature = temperature
-                self.api_key = api_key
-
-        return MockLLM(model=selected_model, temperature=temperature, api_key=api_key)
+    except Exception:
+        # Return string model identifier which is natively valid for CrewAI Agent.llm
+        return selected_model
