@@ -11,7 +11,7 @@ from crew.tools.memory_tools import recall_past_research_tool
 
 try:
     from crewai import Agent
-except ImportError:
+except Exception:
     class Agent:
         def __init__(self, **kwargs):
             for k, v in kwargs.items():

@@ -12,7 +12,7 @@ from crew.tools.memory_tools import store_verified_evidence_tool
 
 try:
     from crewai import Agent
-except ImportError:
+except Exception:
     class Agent:
         def __init__(self, **kwargs):
             for k, v in kwargs.items():

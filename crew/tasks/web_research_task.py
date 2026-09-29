@@ -8,7 +8,7 @@ from typing import Optional, List
 
 try:
     from crewai import Task, Agent
-except ImportError:
+except Exception:
     class Task:
         def __init__(self, **kwargs):
             for k, v in kwargs.items():

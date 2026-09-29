@@ -9,7 +9,7 @@ from config import get_llm
 
 try:
     from crewai import Agent
-except ImportError:
+except Exception:
     class Agent:
         def __init__(self, **kwargs):
             for k, v in kwargs.items():

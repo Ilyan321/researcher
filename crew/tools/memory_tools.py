@@ -5,7 +5,7 @@ from typing import Optional
 
 try:
     from crewai.tools import tool
-except ImportError:
+except Exception:
     def tool(name_or_func=None):
         def decorator(func):
             func.is_tool = True

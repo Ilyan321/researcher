@@ -96,9 +96,9 @@ class ResearcherCrew:
         """Execute the entire multi-agent research workflow."""
         try:
             from crewai import Crew, Process
-        except ImportError:
-            raise ImportError(
-                "crewai is required to run kickoff(). Ensure dependencies are installed."
+        except Exception as e:
+            raise RuntimeError(
+                f"crewai could not be initialized in this runtime environment: {e}"
             )
 
         tasks = self.build_tasks(research_question)

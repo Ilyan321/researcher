@@ -15,7 +15,7 @@ from config import USER_AGENT, REQUEST_TIMEOUT
 
 try:
     from crewai.tools import tool
-except ImportError:
+except Exception:
     def tool(name_or_func=None):
         def decorator(func):
             func.is_tool = True

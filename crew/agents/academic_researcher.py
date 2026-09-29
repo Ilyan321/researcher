@@ -11,7 +11,7 @@ from crew.tools.academic_search import academic_search_tool
 
 try:
     from crewai import Agent
-except ImportError:
+except Exception:
     class Agent:
         def __init__(self, **kwargs):
             for k, v in kwargs.items():
